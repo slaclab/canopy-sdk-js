@@ -6,13 +6,24 @@ import {
   toWsUrl,
 } from '../ws/ResilientSocket.js';
 import type { SocketFrame } from '../ws/ResilientSocket.js';
-import type { FormulaResultDTO, FormulaSpec, FormulaEngineServerFrame } from './types.js';
+import type {
+  FormulaResultDTO,
+  FormulaSpec,
+  FormulaEngineServerFrame,
+  TableInputDTO,
+} from './types.js';
 
 export type FormulaEngineConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
 
 export interface FormulaEngineError {
   code: string;
   message: string;
+  /**
+   * True when the condition is transient and the subscription stays live
+   * (the server keeps evaluating, or the service reconnects); false for a
+   * terminal reject. A server frame without the flag reads as false.
+   */
+  retryable: boolean;
 }
 
 export interface FormulaEngineServiceOptions {
@@ -126,10 +137,15 @@ export class FormulaEngineService {
       label: 'FormulaEngineService',
       onOpen: () => this.resubscribeAll(),
       onFrame: (frame) => this.handleFrame(frame),
-      onClose: () => this.resetServerCorrelation(),
+      onClose: () => this.handleSocketClose(),
       onStatusChange: (status) => this.setStatus(toServiceStatus(status)),
       onError: (error) =>
-        this.reportError({ code: error.code, message: describeSocketError(error, 'formula') }),
+        this.reportError({
+          code: error.code,
+          message: describeSocketError(error, 'formula'),
+          // A failed open schedules a reconnect; a terminal close stops the service.
+          retryable: error.code === 'ws_connect_failed',
+        }),
     });
   }
 
@@ -209,6 +225,26 @@ export class FormulaEngineService {
 
   // ── Connection callbacks ──────────────────────────────────────────────────
 
+  /** The socket dropped on its own (an explicit `dispose()` never gets here). */
+  private handleSocketClose(): void {
+    this.resetServerCorrelation();
+
+    // Every held subscription loses its live evaluation with the socket. Tell
+    // each one, so a consumer stops presenting its last result as current;
+    // retryable while the service reconnects (the subscription is kept and
+    // re-sent on reconnect), not after a terminal close stopped it.
+    // Iterate a copy: a callback may unsubscribe.
+    const retryable = this.socket.status !== 'closed';
+    for (const sub of [...this.subscriptions]) {
+      if (!this.subscriptions.has(sub)) continue;
+      this.dispatchSubscriptionError(sub, {
+        code: 'ws_disconnected',
+        message: 'Formula connection lost.',
+        retryable,
+      });
+    }
+  }
+
   /** Server-assigned ids die with their socket; forget all reply correlation. */
   private resetServerCorrelation(): void {
     this.pending = [];
@@ -240,7 +276,7 @@ export class FormulaEngineService {
       case 'result': {
         const sub = this.byServerId.get(frame.id);
         // Unknown id: a frame that raced our unsubscribe. Drop it.
-        sub?.onResult(frame.data);
+        sub?.onResult(normalizeResult(frame.data));
         break;
       }
       case 'completed':
@@ -248,7 +284,11 @@ export class FormulaEngineService {
         // subscription stays held until the caller unsubscribes.
         break;
       case 'error':
-        this.handleErrorFrame(frame.id, { code: frame.code, message: frame.message });
+        this.handleErrorFrame(frame.id, {
+          code: frame.code,
+          message: frame.message,
+          retryable: frame.retryable ?? false,
+        });
         break;
       case 'pong':
         // Liveness only (the socket already counted it).
@@ -339,4 +379,18 @@ export class FormulaEngineService {
       console.warn(`[FormulaEngineService] ${error.code}: ${error.message}`);
     }
   }
+}
+
+/**
+ * Fill wire defaults the server may omit: a `'table'` input without
+ * `lateAfterFinal` reads as `false`. Other kinds pass through untouched.
+ */
+function normalizeResult(data: FormulaResultDTO): FormulaResultDTO {
+  const table = data.table;
+  if (!table?.inputs) return data;
+  const inputs: Record<string, TableInputDTO> = {};
+  for (const [binding, input] of Object.entries(table.inputs)) {
+    inputs[binding] = { ...input, lateAfterFinal: input.lateAfterFinal ?? false };
+  }
+  return { ...data, table: { ...table, inputs } };
 }

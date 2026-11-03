@@ -7,10 +7,12 @@
 
 import type { WireAlarmSeverity } from '../wire.js';
 
-export type FormulaKind = 'scalar' | 'timeseries' | 'waveform';
+export type FormulaKind = 'scalar' | 'timeseries' | 'waveform' | 'table';
 export type FormulaMode = 'raw' | 'binned';
 export type AlignmentMode = 'last' | 'interpolate';
 export type IndexMode = 'union' | 'intersection' | 'grid' | 'first_input';
+/** Trigger edge of a `'first_input'` table (`canopy.contracts.formula.TriggerEdge`). */
+export type TriggerEdge = 'rising' | 'falling';
 
 /**
  * A complete formula request (`canopy.contracts.formula.FormulaSpec`).
@@ -18,8 +20,12 @@ export type IndexMode = 'union' | 'intersection' | 'grid' | 'first_input';
  */
 export interface FormulaSpec {
   kind: FormulaKind;
-  /** Expression over the binding tokens, e.g. `"A + B * 2"`. */
-  expression: string;
+  /**
+   * Expression over the binding tokens, e.g. `"A + B * 2"`. Required for
+   * every kind except `'table'`, where it must be absent (each column carries
+   * its own expression in `columns`).
+   */
+  expression?: string;
   /** Binding token -> PV name. */
   bindings: Record<string, string>;
   /** Server default: `'raw'`. */
@@ -30,8 +36,28 @@ export interface FormulaSpec {
   index?: IndexMode;
   /** Grid step in nanoseconds; must be > 0 when provided. */
   gridDtNs?: number | null;
-  /** Decimation cap; must be > 0 when provided. */
+  /**
+   * Decimation cap; must be > 0 when provided. For `'table'`, the number of
+   * rows N kept (1-10 000, server default 1000).
+   */
   maxPoints?: number | null;
+  /**
+   * `'table'` only: column name -> expression over `{binding}` tokens, e.g.
+   * `{ x: '{x}', y: '{y} * 1000' }`. Forbidden for the other kinds.
+   */
+  columns?: Record<string, string> | null;
+  /**
+   * `'table'` only: the binding token whose updates emit a row. Required when
+   * `index` is `'first_input'`, forbidden when it is `'grid'`. A trigger
+   * binding need not appear in any column.
+   */
+  trigger?: string | null;
+  /**
+   * `'table'` only, and only when `index` is `'first_input'`: emit a row on a
+   * rising or falling edge of the trigger binding. Absent means every trigger
+   * update emits a row. The server rejects it with any other `index`.
+   */
+  triggerEdge?: TriggerEdge;
 }
 
 export interface ScalarResultDTO {
@@ -57,12 +83,50 @@ export interface WaveformResultDTO {
   severity: WireAlarmSeverity;
 }
 
-/** Tagged union by `kind`: exactly the matching member is non-null. */
+/**
+ * How much of a `'table'` input's window history the server could seed
+ * (`canopy.contracts.formula.TableHistory`).
+ */
+export type TableHistory = 'seeded' | 'live-only' | 'not-archived' | 'truncated';
+
+/** Whether a `'table'` input has produced any sample yet (`TableInputState`). */
+export type TableInputState = 'ok' | 'no-data';
+
+/** Per-binding state of a `'table'` result (`canopy.contracts.formula.TableInput`). */
+export interface TableInputDTO {
+  history: TableHistory;
+  status: TableInputState;
+  /**
+   * True while this input delivered a sample late, or its IOC clock was seen
+   * to skew, within the last 60 s of the server's receive clock (a state, not
+   * a count). Optional on the wire; {@link FormulaEngineService} delivers it as
+   * `false` when a frame omits it.
+   */
+  lateAfterFinal?: boolean;
+}
+
+/** A `'table'` result (`canopy.contracts.formula.TableResult`). */
+export interface TableResultDTO {
+  /** Row timestamps (epoch ns), oldest first. */
+  tsNs: number[];
+  /** Column name -> one value per row; `null` where the column has no value. */
+  columns: Record<string, (number | null)[]>;
+  /** Binding token -> input state (includes a trigger binding that is no column). */
+  inputs: Record<string, TableInputDTO>;
+  /** Rows the server holds for the window; more than `tsNs.length` when capped by `maxPoints`. */
+  totalRows: number;
+}
+
+/**
+ * Tagged union by `kind`: exactly the matching member is non-null. `table`
+ * frames may carry only `{ kind, table }`, without the null siblings.
+ */
 export interface FormulaResultDTO {
   kind: FormulaKind;
   scalar: ScalarResultDTO | null;
   timeseries: TimeseriesResultDTO | null;
   waveform: WaveformResultDTO | null;
+  table?: TableResultDTO | null;
 }
 
 // ── Client -> server messages on WS /formula-engine/v1/ws/formulas ──────────────
@@ -127,6 +191,12 @@ export interface FormulaEngineErrorFrame {
   id?: string;
   code: string;
   message: string;
+  /**
+   * True when the condition is transient (e.g. an input not buffered yet, an
+   * archiver timeout) and the subscription stays live; false for a terminal
+   * reject such as an invalid spec. Missing on older servers = false.
+   */
+  retryable?: boolean;
 }
 
 export interface FormulaEnginePongFrame {
