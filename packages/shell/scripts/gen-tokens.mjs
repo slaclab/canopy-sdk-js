@@ -3,7 +3,7 @@
 // The stylesheet that ships in the pinned `@carbon/styles` is the source of truth; the pin must be
 // the version `@carbon/react` renders with, and the script fails when the two differ. This
 // script parses its four zone blocks (`.cds--white|g10|g90|g100`), enumerates what they declare,
-// and writes `tokens.json`: the 27 contract names, the Carbon token each one aliases standalone,
+// and writes `tokens.json`: the 35 contract names, the Carbon token each one aliases standalone,
 // the literal that token has in each zone (the per-zone fallback of the hosted block) and the
 // Carbon tokens the name drives when hosted.
 //
@@ -66,10 +66,16 @@ export const VALUE_SENTINEL = {
   pattern: /^var\(--cds-border-subtle-00,/,
 };
 
+/** The default dropdown shadow in light and dark zones, the fallback of `shadow-dropdown`. */
+const SHADOW_DROPDOWN_LIGHT = '0 4px 12px rgba(0, 0, 0, 0.1)';
+const SHADOW_DROPDOWN_DARK = '0 8px 24px rgba(0, 0, 0, 0.4)';
+
 /**
  * The contract, in its published order. A colour name aliases one Carbon zone token and falls
  * back to that token's literal in each zone. A non-colour name has a fixed literal equal to
- * Carbon's own `:root` constant, so a standalone page keeps its pixels.
+ * Carbon's own `:root` constant, so a standalone page keeps its pixels. The tile-bar names that
+ * follow `status-error` have no Carbon counterpart: their literal is a chosen default, and
+ * `zoneLiterals` gives one literal per zone where light and dark zones differ.
  */
 export const CONTRACT = [
   ['font-ui', { literal: "'IBM Plex Sans', system-ui, sans-serif" }],
@@ -99,6 +105,24 @@ export const CONTRACT = [
   ['status-success', { alias: 'support-success' }],
   ['status-warning', { alias: 'support-warning' }],
   ['status-error', { alias: 'support-error' }],
+  ['bar-h', { literal: '36px' }],
+  ['bar-icon', { literal: '14px' }],
+  ['tab-min-w', { literal: '96px' }],
+  ['tab-max-w', { literal: '220px' }],
+  ['tab-underline', { literal: '2px' }],
+  ['weight-medium', { literal: '500' }],
+  [
+    'shadow-dropdown',
+    {
+      zoneLiterals: {
+        white: SHADOW_DROPDOWN_LIGHT,
+        g10: SHADOW_DROPDOWN_LIGHT,
+        g90: SHADOW_DROPDOWN_DARK,
+        g100: SHADOW_DROPDOWN_DARK,
+      },
+    },
+  ],
+  ['z-dropdown', { literal: '100' }],
 ];
 
 /** The groups of `wiring.json`, one per family of enumerated token. */
@@ -250,6 +274,14 @@ function buildNames(parsed) {
   const names = {};
   for (const [name, spec] of CONTRACT) {
     const literals = {};
+    if (spec.zoneLiterals !== undefined) {
+      for (const zone of ZONES) {
+        if (typeof spec.zoneLiterals[zone] !== 'string') fail(`${name} has no literal for ${zone}`);
+        literals[zone] = spec.zoneLiterals[zone];
+      }
+      names[name] = { alias: null, literals };
+      continue;
+    }
     if (spec.alias === undefined) {
       if (spec.layout !== undefined && parsed.layout[spec.layout] !== spec.literal) {
         fail(
@@ -356,20 +388,35 @@ function rule(selectors, declarations) {
  * The generated blocks of `host-contract.css`, from the start marker to the end marker.
  *
  * Block 1 is ungated: on the four zone classes, every contract name as an alias of the Carbon
- * token it stands for, or its fixed literal. Block 2 is one rule per zone behind the host gate:
+ * token it stands for, or its fixed literal; a name whose literal differs by zone follows in one
+ * rule per zone. Block 2 is one rule per zone behind the host gate:
  * every contract name reads the host's value and falls back to that zone's Carbon literal, and
  * every wired Carbon token is rewired onto the contract. Inside the gate no `--canopy-*` reads a
  * `--cds-*`: such a pair would be a cycle, which invalidates both.
  */
 export function renderBlocks(tokens, wiring) {
   const names = Object.entries(tokens.names);
-  const standalone = rule(
-    tokens.zones.map((zone) => `.cds--${zone}`),
-    names.map(([name, { alias, literals }]) => [
-      `--canopy-${name}`,
-      alias === null ? literals[tokens.zones[0]] : `var(--cds-${alias})`,
-    ])
+  const perZone = names.filter(
+    ([, { alias, literals }]) => alias === null && new Set(Object.values(literals)).size > 1
   );
+  const uniform = names.filter((entry) => !perZone.includes(entry));
+  const standalone = [
+    rule(
+      tokens.zones.map((zone) => `.cds--${zone}`),
+      uniform.map(([name, { alias, literals }]) => [
+        `--canopy-${name}`,
+        alias === null ? literals[tokens.zones[0]] : `var(--cds-${alias})`,
+      ])
+    ),
+    ...(perZone.length === 0
+      ? []
+      : tokens.zones.map((zone) =>
+          rule(
+            [`.cds--${zone}`],
+            perZone.map(([name, { literals }]) => [`--canopy-${name}`, literals[zone]])
+          )
+        )),
+  ].join('\n\n');
   const wired = mappedTokens(wiring);
   const hosted = tokens.zones.map((zone) =>
     rule(

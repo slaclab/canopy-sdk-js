@@ -30,7 +30,15 @@
         "focus": "#65fedc",
         "status-success": "#11aa55",
         "status-warning": "#ddaa11",
-        "status-error": "#dd3344"
+        "status-error": "#dd3344",
+        "bar-h": "38px",
+        "bar-icon": "15px",
+        "tab-min-w": "90px",
+        "tab-max-w": "210px",
+        "tab-underline": "3px",
+        "weight-medium": "600",
+        "shadow-dropdown": "0 6px 18px rgba(1, 2, 3, 0.5)",
+        "z-dropdown": "101"
       }
     },
     "probe-b-dark": {
@@ -62,7 +70,15 @@
         "focus": "#dcfe65",
         "status-success": "#22bb66",
         "status-warning": "#eebb22",
-        "status-error": "#ee4455"
+        "status-error": "#ee4455",
+        "bar-h": "34px",
+        "bar-icon": "13px",
+        "tab-min-w": "88px",
+        "tab-max-w": "200px",
+        "tab-underline": "4px",
+        "weight-medium": "400",
+        "shadow-dropdown": "0 5px 15px rgba(3, 2, 1, 0.45)",
+        "z-dropdown": "102"
       }
     },
     "probe-light": {
@@ -94,7 +110,15 @@
         "focus": "#8f0a5c",
         "status-success": "#1a7f37",
         "status-warning": "#9a6700",
-        "status-error": "#cf222e"
+        "status-error": "#cf222e",
+        "bar-h": "40px",
+        "bar-icon": "16px",
+        "tab-min-w": "100px",
+        "tab-max-w": "240px",
+        "tab-underline": "1px",
+        "weight-medium": "700",
+        "shadow-dropdown": "0 3px 9px rgba(0, 0, 0, 0.15)",
+        "z-dropdown": "103"
       }
     }
   }

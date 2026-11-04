@@ -31,6 +31,20 @@ const GATE = 'html[data-canopy-host]';
 const TOKENS = JSON.parse(read('tokens.json')) as Tokens;
 const SHEET = read('host-contract.css');
 const NAMES = Object.keys(TOKENS.names);
+/**
+ * The tile-bar names: canopy-screen-runtime's tile bar reads them, this sheet has no component
+ * they style, so I-1's consumer rule does not apply to them.
+ */
+const TILE_BAR_NAMES = [
+  'bar-h',
+  'bar-icon',
+  'tab-min-w',
+  'tab-max-w',
+  'tab-underline',
+  'weight-medium',
+  'shadow-dropdown',
+  'z-dropdown',
+];
 
 /** Everything outside the two markers, comments included. */
 function handWritten(sheet: string): string {
@@ -261,8 +275,8 @@ describe('the recipes read existing contract names only', () => {
     }
   });
 
-  it('keeps the contract at 27 names', () => {
-    expect(NAMES).toHaveLength(27);
+  it('keeps the contract at 35 names', () => {
+    expect(NAMES).toHaveLength(35);
   });
 });
 
@@ -405,12 +419,21 @@ describe('the component rules under the host gate', () => {
 describe('I-1: every contract name has a consumer in the sheet', () => {
   const css = SHEET.replace(/\/\*[\s\S]*?\*\//g, '');
 
-  it('has 27 names', () => {
-    expect(NAMES).toHaveLength(27);
+  it('has 35 names', () => {
+    expect(NAMES).toHaveLength(35);
   });
 
-  it.each(NAMES)('--canopy-%s is read by a declaration', (name) => {
-    expect(css).toMatch(new RegExp(`var\\(\\s*--canopy-${name}\\s*[,)]`));
+  it.each(NAMES.filter((name) => !TILE_BAR_NAMES.includes(name)))(
+    '--canopy-%s is read by a declaration',
+    (name) => {
+      expect(css).toMatch(new RegExp(`var\\(\\s*--canopy-${name}\\s*[,)]`));
+    }
+  );
+
+  it.each(TILE_BAR_NAMES)('--canopy-%s is left to the runtime tile bar, unread here', (name) => {
+    expect(NAMES).toContain(name);
+    expect(TOKENS.names[name].drives).toEqual([]);
+    expect(css).not.toMatch(new RegExp(`var\\(\\s*--canopy-${name}\\s*[,)]`));
   });
 
   it.each(['font-ui', 'radius-sm', 'radius-md'])(

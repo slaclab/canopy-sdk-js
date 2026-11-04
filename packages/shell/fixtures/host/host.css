@@ -46,6 +46,14 @@
   --canopy-host-status-success: #11aa55;
   --canopy-host-status-warning: #ddaa11;
   --canopy-host-status-error: #dd3344;
+  --canopy-host-bar-h: 38px;
+  --canopy-host-bar-icon: 15px;
+  --canopy-host-tab-min-w: 90px;
+  --canopy-host-tab-max-w: 210px;
+  --canopy-host-tab-underline: 3px;
+  --canopy-host-weight-medium: 600;
+  --canopy-host-shadow-dropdown: 0 6px 18px rgba(1, 2, 3, 0.5);
+  --canopy-host-z-dropdown: 101;
 }
 
 [data-theme='probe-b-dark'] {
@@ -77,6 +85,14 @@
   --canopy-host-status-success: #22bb66;
   --canopy-host-status-warning: #eebb22;
   --canopy-host-status-error: #ee4455;
+  --canopy-host-bar-h: 34px;
+  --canopy-host-bar-icon: 13px;
+  --canopy-host-tab-min-w: 88px;
+  --canopy-host-tab-max-w: 200px;
+  --canopy-host-tab-underline: 4px;
+  --canopy-host-weight-medium: 400;
+  --canopy-host-shadow-dropdown: 0 5px 15px rgba(3, 2, 1, 0.45);
+  --canopy-host-z-dropdown: 102;
 }
 
 [data-theme='probe-light'] {
@@ -108,4 +124,12 @@
   --canopy-host-status-success: #1a7f37;
   --canopy-host-status-warning: #9a6700;
   --canopy-host-status-error: #cf222e;
+  --canopy-host-bar-h: 40px;
+  --canopy-host-bar-icon: 16px;
+  --canopy-host-tab-min-w: 100px;
+  --canopy-host-tab-max-w: 240px;
+  --canopy-host-tab-underline: 1px;
+  --canopy-host-weight-medium: 700;
+  --canopy-host-shadow-dropdown: 0 3px 9px rgba(0, 0, 0, 0.15);
+  --canopy-host-z-dropdown: 103;
 }

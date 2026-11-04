@@ -64,6 +64,12 @@ const gated = (zone: string) => `${GATE} .cds--${zone}`;
 
 const NAMES = Object.keys(TOKENS.names);
 const CONTRACT_NAMES = NAMES.map((name) => `--canopy-${name}`);
+/** The names whose standalone literal differs by zone; each zone class declares them alone. */
+const PER_ZONE = NAMES.filter((name) => {
+  const { alias, literals } = TOKENS.names[name];
+  return alias === null && new Set(Object.values(literals)).size > 1;
+});
+const UNIFORM = NAMES.filter((name) => !PER_ZONE.includes(name));
 const MAPPED = Object.values(WIRING).flatMap((group) =>
   Object.entries(group).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
 );
@@ -86,9 +92,14 @@ describe('the generated blocks of host-contract.css', () => {
     expect(SHEET.indexOf(START)).toBeLessThan(SHEET.indexOf(END));
   });
 
-  it('are the standalone rule and one gated rule for each of the four zones', () => {
+  it('are the standalone rule, its per-zone rules and one gated rule for each of the four zones', () => {
     expect(TOKENS.zones).toEqual(['white', 'g10', 'g90', 'g100']);
-    expect([...RULES.keys()]).toEqual([STANDALONE, ...TOKENS.zones.map(gated)]);
+    expect(PER_ZONE).toEqual(['shadow-dropdown']);
+    expect([...RULES.keys()]).toEqual([
+      STANDALONE,
+      ...TOKENS.zones.map((zone) => `.cds--${zone}`),
+      ...TOKENS.zones.map(gated),
+    ]);
   });
 
   it('declare no variable twice in one rule', () => {
@@ -100,16 +111,21 @@ describe('the generated blocks of host-contract.css', () => {
 });
 
 describe('I-5: what each block declares', () => {
-  it('has 27 contract names and a wiring that maps tokens onto them', () => {
-    expect(NAMES).toHaveLength(27);
+  it('has 35 contract names and a wiring that maps tokens onto them', () => {
+    expect(NAMES).toHaveLength(35);
     expect(MAPPED.length).toBeGreaterThan(0);
   });
 
   it('declares exactly the tokens.json names in the standalone block, and nothing else', () => {
     const rule = ruleOf(STANDALONE);
 
-    expect(declared(rule, '--canopy-')).toEqual(CONTRACT_NAMES);
-    expect(rule).toHaveLength(NAMES.length);
+    expect(declared(rule, '--canopy-')).toEqual(UNIFORM.map((name) => `--canopy-${name}`));
+    expect(rule).toHaveLength(UNIFORM.length);
+    for (const zone of TOKENS.zones) {
+      const own = ruleOf(`.cds--${zone}`);
+      expect(declared(own, '--canopy-'), zone).toEqual(PER_ZONE.map((name) => `--canopy-${name}`));
+      expect(own, zone).toHaveLength(PER_ZONE.length);
+    }
   });
 
   it.each(['white', 'g10', 'g90', 'g100'])(
@@ -180,11 +196,19 @@ describe('the literals of the blocks', () => {
   it('alias each colour name to its Carbon token standalone, and fix the others', () => {
     const rule = new Map(ruleOf(STANDALONE));
 
-    for (const name of NAMES) {
+    for (const name of UNIFORM) {
       const { alias, literals } = TOKENS.names[name];
       expect(rule.get(`--canopy-${name}`), name).toBe(
         alias === null ? literals.white : `var(--cds-${alias})`
       );
+    }
+    for (const zone of TOKENS.zones) {
+      const own = new Map(ruleOf(`.cds--${zone}`));
+      for (const name of PER_ZONE) {
+        expect(own.get(`--canopy-${name}`), `${zone} ${name}`).toBe(
+          TOKENS.names[name].literals[zone]
+        );
+      }
     }
   });
 

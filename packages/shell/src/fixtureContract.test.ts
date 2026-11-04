@@ -318,10 +318,12 @@ describe('hostProbes.json', () => {
         selector
       ).toEqual([[[], undefined]]);
     }
-    expect(Object.keys(rowsWhere('viewer', '.canopy-tile-bar')[0].expect).sort()).toEqual([
-      'background-color',
-      'border-bottom-color',
-    ]);
+    expect(rowsWhere('viewer', '.canopy-tile-bar')[0].expect).toEqual({
+      height: { contract: 'bar-h' },
+      'background-color': { contract: 'bg-panel' },
+      'border-bottom-color': { contract: 'border' },
+      'font-family': { contract: 'font-ui' },
+    });
     expect(rowsWhere('viewer', '.canopy-tile-bar__close')[0].expect).toEqual({
       color: { contract: 'text-secondary' },
     });
@@ -335,7 +337,8 @@ describe('hostProbes.json', () => {
       ['viewer', '.dv-drop-target-anchor', ['dock-second-tile', 'hold-tab-drag'], false],
     ]);
     expect(rows[0].expect).toEqual({ 'font-family': { contract: 'font-ui' } });
-    expect(rows[1].expect).toEqual({ 'border-top-color': { contract: 'accent' } });
+    // The focused tile's bottom hairline carries the accent (one bar per tile, no top border).
+    expect(rows[1].expect).toEqual({ 'border-bottom-color': { contract: 'accent' } });
     // One tile is the state every other viewer row expects: no row on the default page may
     // reach two tiles and stay on the stack, whose rows share one browser context.
     for (const row of rows) expect(row.page, label(row)).toBeUndefined();
@@ -360,8 +363,8 @@ describe('hostProbes.json', () => {
     expect(setups.postconditions['dock-second-tile']).toBeUndefined();
   });
 
-  it('adds no token for the dock rows', () => {
-    expect(NAMES.length).toBe(27);
+  it('adds no token for the dock rows beyond the eight tile-bar names', () => {
+    expect(NAMES.length).toBe(35);
   });
 
   it('probes the Trace action at a 600 px viewport too', () => {
