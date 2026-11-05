@@ -146,8 +146,11 @@ importers:
         specifier: ^11.81.0
         version: 11.83.0(react@19.2.6)
       '@carbon/react':
-        specifier: ^1.108.0
+        specifier: ^1.111.0
         version: 1.111.0(react-dom@19.2.6(react@19.2.6))(react-is@18.2.0)(react@19.2.6)(sass@1.101.0)
+      '@carbon/styles':
+        specifier: 1.110.0
+        version: 1.110.0(sass@1.101.0)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1
@@ -267,14 +270,14 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@carbon/colors@11.53.0':
-    resolution: {integrity: sha512-PvvBsNFng3IRoBp1f7SsHewmuxMTIsCoyl09ksjrQw5iwNSwScKJ3gcSVVLr1rhjQ0p/DakVANupnAaKp03ReA==}
+  '@carbon/colors@11.60.0':
+    resolution: {integrity: sha512-hJ5fPDfT9EfjkLm3I6a7dhpIE6TmeTt39qEnlrDGRIUo00fiOh6ZwkZ/I7r9nZNjW9dQZUZfO+dTPcGAC1hpOQ==}
 
   '@carbon/feature-flags@1.4.0':
     resolution: {integrity: sha512-ENWuo49HTT4pgWL3TgY+EIMQQyFwTykWnmfCfaXvRzc2mQQ3d22sV0chTJsMiZwclHiRASeb/q5FIZquZb7iFw==}
 
-  '@carbon/grid@11.57.0':
-    resolution: {integrity: sha512-VqRy0gxb+jOzu9c2IiDsCt8m6S08/AEv35M6ehCi1zI8ANVKGG8mLQJvpnYUY80ZtsuCDEmVkcNrcRfz2nkbeg==}
+  '@carbon/grid@11.64.0':
+    resolution: {integrity: sha512-nzMje7whWZAoQmNKpPeVOK8T1jnxa7pHDCPbF9ykNUpxBi/Xm0NX/zMVjzIz1K75dY6MKmrzR4Bf+4MJH48pfg==}
 
   '@carbon/icon-helpers@10.77.0':
     resolution: {integrity: sha512-furqJbaATl7PTn9ZKpaDHwQsNhOBcuFMspRJR0CyErAxxuioMPopnCiYcwG38yXiC1G7FqTMf3l0mErTZuc7Gw==}
@@ -286,6 +289,9 @@ packages:
 
   '@carbon/layout@11.54.0':
     resolution: {integrity: sha512-Jz+kBUKnjx83qHRQI3stz1dhX1JLITdUGxpf0R2YvsghBpT4DQpx1BmHH2zWOFx/Oh/rJijMOCFTSkLizSbySg==}
+
+  '@carbon/layout@11.61.0':
+    resolution: {integrity: sha512-+j3wKiGe4XaJyub31TUhDXDL8py2cCg/ZqQ1y0BWp3/yi5IvlbH5lXhBjV/iJwpMgtbiGJuKkKBCKMgqDlf8tQ==}
 
   '@carbon/motion@11.47.0':
     resolution: {integrity: sha512-EhMVu6YFak+DzaYv5VPReRhmT8NT9RWMIpN6pWTByseATszOn+gvPu27ggiXMiOxOzTuqgUTKpp+n6jvNyBeZw==}
@@ -306,11 +312,12 @@ packages:
       sass:
         optional: true
 
-  '@carbon/themes@11.76.0':
-    resolution: {integrity: sha512-KgBidWQL5rkxYbcYtDwgUJkKH6tOaSSuyW98vpei54h7py3QlNtOvy8+Ddfn/AswvGmDfdBmZntVQB2W+yV0kA==}
+  '@carbon/themes@11.83.0':
+    resolution: {integrity: sha512-YxfO7BsoPCT+tJbJq/JiOZaYE+OE1ZSGMK93yC5pws/X5l25qUpKxWOb85OQBkOnYrwKGUsPEbAKm2wXvbFb5w==}
+    engines: {node: '>=22'}
 
-  '@carbon/type@11.62.0':
-    resolution: {integrity: sha512-qSNCK8AUGGAumGz43ZDFwTEW19xTsE9cfYPstxIHYkIobflOiqynwyMj00r2w1oRpPx7YhXIBI9AAJYJL2qjhQ==}
+  '@carbon/type@11.69.0':
+    resolution: {integrity: sha512-8gmk6VrFV8+R7786YfLk+x1eS6EIGaCz7JLX/UEKlnVSck/7qnZdRjAkFceO3J6NL6hifP2X3wDO1qW9BMmESA==}
 
   '@carbon/utilities@0.21.0':
     resolution: {integrity: sha512-up03L21ebI16Gq+sCW98EuKot7jhKHW9ZLA190z61FGhulzqzsQc1Ov+0Q33Fp1LuXum+XVRV5ris9eBB0aF0w==}
@@ -907,21 +914,19 @@ packages:
     resolution: {integrity: sha512-xRwvIOMGrfOAnM1JYtqQImuaNtDEv9v6oIYAs4LIHwTiKee8uwvIi363igssOC0O5U04i4AlENs79LQLu9tEMw==}
     engines: {node: '>=20'}
 
-  color-convert@3.1.3:
-    resolution: {integrity: sha512-fasDH2ont2GqF5HpyO4w0+BcewlhHEZOFn9c1ckZdHpJ56Qb7MHhH/IcJZbBGgvdtwdwNbLvxiBEdg336iA9Sg==}
-    engines: {node: '>=14.6'}
+  color-convert@2.0.1:
+    resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
+    engines: {node: '>=7.0.0'}
 
-  color-name@2.1.0:
-    resolution: {integrity: sha512-1bPaDNFm0axzE4MEAzKPuqKWeRaT43U/hyxKPBdqTfmPF+d6n7FSoTFxLVULUJOmiLp01KjhIPPH+HrXZJN4Rg==}
-    engines: {node: '>=12.20'}
+  color-name@1.1.4:
+    resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
-  color-string@2.1.4:
-    resolution: {integrity: sha512-Bb6Cq8oq0IjDOe8wJmi4JeNn763Xs9cfrBcaylK1tPypWzyoy2G3l90v9k64kjphl/ZJjPIShFztenRomi8WTg==}
-    engines: {node: '>=18'}
+  color-string@1.9.1:
+    resolution: {integrity: sha512-shrVawQFojnZv6xM40anx4CkoDP+fZsw/ZerEMsW/pyzsRbElpsL/DBVW7q3ExxwusdNXI3lXpuhEZkzs8p5Eg==}
 
-  color@5.0.3:
-    resolution: {integrity: sha512-ezmVcLR3xAVp8kYOm4GS45ZLLgIE6SPAFoduLr6hTDajwb3KZ2F46gulK3XpcwRFb5KKGCSezCBAY4Dw4HsyXA==}
-    engines: {node: '>=18'}
+  color@4.2.3:
+    resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
+    engines: {node: '>=12.5.0'}
 
   compute-scroll-into-view@3.1.1:
     resolution: {integrity: sha512-VRhuHOLoKYOy4UbilLbUzbYg93XLjv2PncJC50EuTWPA3gaja1UjBsUP/D/9/juV3vQFr6XBEzn9KCAHdUvOHw==}
@@ -1177,6 +1182,9 @@ packages:
 
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
+
+  is-arrayish@0.3.4:
+    resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
 
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
@@ -1528,6 +1536,9 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
+
+  simple-swizzle@0.2.4:
+    resolution: {integrity: sha512-nAu1WFPQSMNr2Zn9PGSZK9AGn4t/y97lEm+MXTtUDwfP0ksAIX4nO+6ruD9Jwut4C49SB1Ws+fbXsm/yScWOHw==}
 
   size-sensor@1.0.3:
     resolution: {integrity: sha512-+k9mJ2/rQMiRmQUcjn+qznch260leIXY8r4FyYKKyRBO/s5UoeMAHGkCJyE1R/4wrIhTJONfyloY55SkE7ve3A==}
@@ -1934,7 +1945,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@carbon/colors@11.53.0':
+  '@carbon/colors@11.60.0':
     dependencies:
       '@ibm/telemetry-js': 1.11.0
 
@@ -1942,9 +1953,9 @@ snapshots:
     dependencies:
       '@ibm/telemetry-js': 1.11.0
 
-  '@carbon/grid@11.57.0':
+  '@carbon/grid@11.64.0':
     dependencies:
-      '@carbon/layout': 11.54.0
+      '@carbon/layout': 11.61.0
       '@ibm/telemetry-js': 1.11.0
 
   '@carbon/icon-helpers@10.77.0':
@@ -1959,6 +1970,10 @@ snapshots:
       react: 19.2.6
 
   '@carbon/layout@11.54.0':
+    dependencies:
+      '@ibm/telemetry-js': 1.11.0
+
+  '@carbon/layout@11.61.0':
     dependencies:
       '@ibm/telemetry-js': 1.11.0
 
@@ -1992,13 +2007,13 @@ snapshots:
 
   '@carbon/styles@1.110.0(sass@1.101.0)':
     dependencies:
-      '@carbon/colors': 11.53.0
+      '@carbon/colors': 11.60.0
       '@carbon/feature-flags': 1.4.0
-      '@carbon/grid': 11.57.0
-      '@carbon/layout': 11.54.0
+      '@carbon/grid': 11.64.0
+      '@carbon/layout': 11.61.0
       '@carbon/motion': 11.47.0
-      '@carbon/themes': 11.76.0
-      '@carbon/type': 11.62.0
+      '@carbon/themes': 11.83.0
+      '@carbon/type': 11.69.0
       '@ibm/plex': 6.4.1
       '@ibm/plex-mono': 1.1.0
       '@ibm/plex-sans': 1.1.0
@@ -2012,18 +2027,18 @@ snapshots:
     optionalDependencies:
       sass: 1.101.0
 
-  '@carbon/themes@11.76.0':
+  '@carbon/themes@11.83.0':
     dependencies:
-      '@carbon/colors': 11.53.0
-      '@carbon/layout': 11.54.0
-      '@carbon/type': 11.62.0
+      '@carbon/colors': 11.60.0
+      '@carbon/layout': 11.61.0
+      '@carbon/type': 11.69.0
       '@ibm/telemetry-js': 1.11.0
-      color: 5.0.3
+      color: 4.2.3
 
-  '@carbon/type@11.62.0':
+  '@carbon/type@11.69.0':
     dependencies:
-      '@carbon/grid': 11.57.0
-      '@carbon/layout': 11.54.0
+      '@carbon/grid': 11.64.0
+      '@carbon/layout': 11.61.0
       '@ibm/telemetry-js': 1.11.0
 
   '@carbon/utilities@0.21.0':
@@ -2588,20 +2603,21 @@ snapshots:
       slice-ansi: 8.0.0
       string-width: 8.2.1
 
-  color-convert@3.1.3:
+  color-convert@2.0.1:
     dependencies:
-      color-name: 2.1.0
+      color-name: 1.1.4
 
-  color-name@2.1.0: {}
+  color-name@1.1.4: {}
 
-  color-string@2.1.4:
+  color-string@1.9.1:
     dependencies:
-      color-name: 2.1.0
+      color-name: 1.1.4
+      simple-swizzle: 0.2.4
 
-  color@5.0.3:
+  color@4.2.3:
     dependencies:
-      color-convert: 3.1.3
-      color-string: 2.1.4
+      color-convert: 2.0.1
+      color-string: 1.9.1
 
   compute-scroll-into-view@3.1.1: {}
 
@@ -2847,6 +2863,8 @@ snapshots:
   invariant@2.2.4:
     dependencies:
       loose-envify: 1.4.0
+
+  is-arrayish@0.3.4: {}
 
   is-extglob@2.1.1: {}
 
@@ -3168,6 +3186,10 @@ snapshots:
   siginfo@2.0.0: {}
 
   signal-exit@4.1.0: {}
+
+  simple-swizzle@0.2.4:
+    dependencies:
+      is-arrayish: 0.3.4
 
   size-sensor@1.0.3: {}
 
