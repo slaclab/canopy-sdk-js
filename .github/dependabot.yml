@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  # One entry at the root covers the pnpm workspace: every package's
+  # package.json and pnpm-lock.yaml. Minor and patch updates share one PR;
+  # each major gets its own, so one breaking major doesn't hold up the rest.
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  # Workflows pin every action to a commit SHA; Dependabot moves the pin and
+  # the version comment together.
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  # pyproject.toml and uv.lock only build the docs site (gh-pages.yml).
+  - package-ecosystem: 'uv'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    groups:
+      python-dependencies:
+        patterns:
+          - '*'
