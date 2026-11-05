@@ -1,0 +1,77 @@
+{
+  "description": "A ColorRole at a rule position must be well-formed: `$role` is required.",
+  "valid": false,
+  "errors": [
+    {
+      "rule": "schema",
+      "instancePath": "/root/children/0/rules/0"
+    }
+  ],
+  "screen": {
+    "schemaVersion": "1.1",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "pv-label",
+          "props": {
+            "pv": "DEMO:A"
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          },
+          "rules": [
+            {
+              "id": "r-001",
+              "name": "alarm color",
+              "targetProperty": "foregroundColor",
+              "default": "#161616",
+              "pvs": [
+                {
+                  "name": "DEMO:A",
+                  "trigger": true
+                }
+              ],
+              "conditions": [
+                {
+                  "expression": "x > 0",
+                  "value": {
+                    "fallback": "#ff0000"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

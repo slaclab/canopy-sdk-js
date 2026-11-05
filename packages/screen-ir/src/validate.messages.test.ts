@@ -38,7 +38,7 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
     "/root/children/0/rules/0 must have required property 'formula'",
     ONE_ARM,
   ],
-  'invalid-schema-version': ['/schemaVersion must be equal to constant'],
+  'invalid-schema-version': ['/schemaVersion must be equal to one of the allowed values'],
   'invalid-screen-macro-without-default': [
     "macro 'dev' needs a default on a screen (kind='screen')",
   ],

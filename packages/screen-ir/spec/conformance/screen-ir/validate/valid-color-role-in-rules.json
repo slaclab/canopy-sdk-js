@@ -1,0 +1,80 @@
+{
+  "description": "A ColorRole is legal at a rule position: a condition `value` and a conditional rule's `default`.",
+  "valid": true,
+  "screen": {
+    "schemaVersion": "1.1",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "pv-label",
+          "props": {
+            "pv": "DEMO:A"
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          },
+          "rules": [
+            {
+              "id": "r-001",
+              "name": "alarm color",
+              "targetProperty": "foregroundColor",
+              "default": {
+                "$role": "text.primary",
+                "fallback": "#161616"
+              },
+              "pvs": [
+                {
+                  "name": "DEMO:A",
+                  "trigger": true
+                }
+              ],
+              "conditions": [
+                {
+                  "expression": "x > 1",
+                  "value": {
+                    "$role": "alarm.major",
+                    "fallback": "#ff0000",
+                    "fallbackDark": "#ff6666"
+                  }
+                },
+                {
+                  "expression": "x > 0",
+                  "value": "#ffff00"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "description": "`hoverLabel`, `hoverLabelPlacement` and the reserved `props.actions` list on a widget.",
+  "valid": true,
+  "screen": {
+    "schemaVersion": "1.0",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "rectangle",
+          "props": {
+            "hoverLabel": "Open the orbit screen",
+            "hoverLabelPlacement": "center",
+            "actions": [
+              {
+                "type": "open_display",
+                "file": "orbit.screen.json",
+                "target": "tab"
+              },
+              {
+                "type": "write_pv",
+                "pvName": "DEMO:RESET",
+                "value": 1
+              }
+            ]
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          }
+        }
+      ]
+    }
+  }
+}

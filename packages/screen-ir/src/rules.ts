@@ -1,5 +1,17 @@
 // Author form only — runtime FormulaSpec is derived client-side at subscription time.
 
+import type { ColorRole } from './colorRole.js';
+
+/** A JSON scalar a rule can write to its target property. */
+export type RuleScalar = string | number | boolean | null;
+
+/**
+ * A value at a rule position that may also name a theme color: a {@link RuleScalar}
+ * or a {@link ColorRole}. Allowed in condition values and the conditional arm's
+ * `default`; the formula arm's `default` stays a {@link RuleScalar}.
+ */
+export type RuleValue = RuleScalar | ColorRole;
+
 /**
  * One PV binding referenced by a rule's conditions.
  *
@@ -20,8 +32,8 @@ export interface RulePvBinding {
  */
 export interface RuleCondition {
   readonly expression: string;
-  /** JSON-serializable scalar matching the target property's type. */
-  readonly value: string | number | boolean | null;
+  /** JSON scalar matching the target property's type, or a theme color role. */
+  readonly value: RuleValue;
 }
 
 /**
@@ -35,8 +47,6 @@ interface RuleBase {
   readonly id: string;
   readonly name: string;
   readonly targetProperty: string;
-  /** Value written to the target property when no condition matches. */
-  readonly default: string | number | boolean | null;
 }
 
 /**
@@ -53,9 +63,13 @@ interface RuleBase {
  */
 export type Rule =
   | (RuleBase & {
+      /** Value written to the target property when no condition matches. */
+      readonly default: RuleValue;
       readonly pvs: readonly RulePvBinding[];
       readonly conditions: readonly RuleCondition[];
     })
   | (RuleBase & {
+      /** Value written to the target property before the formula yields one. */
+      readonly default: RuleScalar;
       readonly formula: string;
     });

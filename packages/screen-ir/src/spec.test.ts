@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { gitFiles } from '../scripts/spec-lib.mjs';
 import { MACRO_NAME_PATTERN } from './macros.js';
 import { SCHEMA_VERSION } from './screen.js';
+import { SUPPORTED_SCHEMA_VERSIONS } from './schemaVersion.js';
 import { IR_WIDGET_TYPES, WIDGET_DEFINITIONS } from './widgets.js';
 import schema from '../spec/screen-ir/screen-ir.schema.json' with { type: 'json' };
 
@@ -37,8 +38,9 @@ const specFiles = gitFiles(pkgDir, ['spec'])
 
 describe('spec copy', () => {
   it('is pinned to a canopy-spec release tag and commit', () => {
-    expect(lock.repo).toBe('slaclab/canopy-spec');
-    expect(lock.ref).toMatch(/^v\d+\.\d+\.\d+$/);
+    // Until slaclab/canopy-spec#17 is released, the copy is pinned to that
+    // PR's head; `spec:sync <tag>` to the release restores the tag-only check.
+    expect(lock).toMatchObject({ repo: 'slaclab/canopy-spec', ref: 'pull/17/head' });
     expect(lock.commit).toMatch(/^[0-9a-f]{40}$/);
   });
 
@@ -76,8 +78,9 @@ describe('generated widget module', () => {
 });
 
 describe('constants read from the copied schema', () => {
-  it('SCHEMA_VERSION', () => {
-    expect(SCHEMA_VERSION).toBe(schema.properties.schemaVersion.const);
+  it('SUPPORTED_SCHEMA_VERSIONS and SCHEMA_VERSION', () => {
+    expect([...SUPPORTED_SCHEMA_VERSIONS]).toEqual(schema.properties.schemaVersion.enum);
+    expect(schema.properties.schemaVersion.enum).toContain(SCHEMA_VERSION);
   });
 
   it('MACRO_NAME_PATTERN', () => {

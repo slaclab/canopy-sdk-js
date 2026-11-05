@@ -1,6 +1,11 @@
 // @slaclab/canopy-screen-ir public surface.
 
 export { SCHEMA_VERSION } from './screen.js';
+export {
+  SUPPORTED_SCHEMA_VERSIONS,
+  isSupportedSchemaVersion,
+  stampSchemaVersion,
+} from './schemaVersion.js';
 export type {
   SchemaVersion,
   ScreenKind,
@@ -24,9 +29,18 @@ export type {
   PropertyTagged,
   Props,
   UnknownWidgetProps,
+  Action,
 } from './widget.js';
+export { isAction, readActions } from './widget.js';
 
-export type { Rule, RulePvBinding, RuleCondition } from './rules.js';
+export type { Rule, RulePvBinding, RuleCondition, RuleScalar, RuleValue } from './rules.js';
+
+export type { ColorRole } from './colorRole.js';
+export { isColorRole } from './colorRole.js';
+
+export type { FlatScheme, SchemeMeta, SchemeError } from './flatScheme.js';
+export { parseFlatScheme, isServerFallback, CANOPY_DEFAULT_SCHEME_ID } from './flatScheme.js';
+export { canopyDefaultFlat } from './canopyDefault.js';
 
 export { IR_WIDGET_TYPES, WIDGET_DEFINITIONS } from './widgets.js';
 export type { IRWidgetType, WidgetDefinition } from './widgets.js';
