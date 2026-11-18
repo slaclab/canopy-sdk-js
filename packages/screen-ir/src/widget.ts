@@ -18,9 +18,14 @@ export interface WidgetMeta {
 /**
  * A widget property value: a JSON literal, or a {@link ColorRole} wherever the
  * property holds a color. An object carrying `$role` is a role and nothing else;
- * `validate()` rejects one that is not well-formed. Macro substitution is
- * detected via the widget's `propSchema`
- * (`format: "pv-channel" | "macro-string"`), not via the value.
+ * `validate()` rejects one that is not well-formed.
+ *
+ * Where a widget's own props take macros is declared by its `propSchema`
+ * (`format: "pv-channel" | "macro-string"`), not detected from the value. The
+ * exception is two props every widget accepts, `outlineWidth` and
+ * `hoverLabelPlacement`: besides their typed value, each may hold a macro string
+ * (one containing `$(` or `${`, such as `"$(W)"`), which a viewer expands before
+ * using it.
  */
 export type PropertyValue = PropertyLiteral | ColorRole | PropertyTagged;
 
@@ -82,9 +87,13 @@ export interface UnknownWidgetProps {
  * - `close_display` closes the screen hosting the widget.
  *
  * {@link isAction} checks field types only; it does not judge whether an action is
- * safe to run. A runtime must refuse `execute` unless its deployment explicitly
- * enables it, and must reject an `open_webpage` `url` whose scheme is not `http:`
- * or `https:` (for example `javascript:`) before using it as a link.
+ * safe to run. A runtime must refuse `execute` and `open_file` unless its
+ * deployment enables them, since opening a file with the system's default program
+ * can run a program. Before it opens an `open_webpage` `url`, a runtime must expand
+ * its macros and parse it the way a browser does (the WHATWG URL parser). It opens
+ * the URL only if it is relative or its scheme, compared case-insensitively, is
+ * `http` or `https`; it refuses a protocol-relative URL (`//host/path`) and any
+ * other scheme, such as `javascript:`.
  */
 export type Action =
   | {
@@ -136,6 +145,9 @@ export function isAction(x: unknown): x is Action {
 /**
  * Read the reserved `props.actions` list. Returns it only when it is an array whose every
  * entry passes {@link isAction}; otherwise (absent, malformed, or any bad entry) returns `[]`.
+ * Dropping the whole list, not just the bad entry, is what canopy-spec requires: the
+ * actions run as a sequence, and running part of it could do something the author
+ * didn't intend.
  */
 export function readActions(props: Readonly<Record<string, unknown>>): Action[] {
   const actions = props.actions;

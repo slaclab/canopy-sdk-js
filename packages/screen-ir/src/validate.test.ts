@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validate } from './validate.js';
+import { validate, validateDetailed } from './validate.js';
 import { SCHEMA_VERSION, MACRO_NAME_PATTERN } from './index.js';
 
 const minimal = {
@@ -15,6 +15,9 @@ const minimal = {
     geometry: { x: 0, y: 0, width: 100, height: 100 },
   },
 };
+
+// A document that carries a color role must be 1.1 (rule `color-role-version`).
+const minimal11 = { ...minimal, schemaVersion: '1.1' };
 
 describe('@slaclab/canopy-screen-ir validate', () => {
   it('accepts a minimal valid screen', () => {
@@ -45,7 +48,7 @@ describe('@slaclab/canopy-screen-ir validate', () => {
     const role = { $role: 'alarm.major', fallback: '#ff0000', fallbackDark: '#ff4040' };
 
     const withConditional = (value: unknown, dflt: unknown = '#000000') => ({
-      ...minimal,
+      ...minimal11,
       root: {
         ...minimal.root,
         rules: [
@@ -62,7 +65,7 @@ describe('@slaclab/canopy-screen-ir validate', () => {
     });
 
     const withFormula = (dflt: unknown) => ({
-      ...minimal,
+      ...minimal11,
       formulas: [{ name: 'f', expression: '1' }],
       root: {
         ...minimal.root,
@@ -122,9 +125,9 @@ describe('@slaclab/canopy-screen-ir validate', () => {
   describe('property positions', () => {
     const role = { $role: 'Text', fallback: '#161616', fallbackDark: '#f4f4f4' };
 
-    const withProps = (props: unknown) => ({ ...minimal, root: { ...minimal.root, props } });
+    const withProps = (props: unknown) => ({ ...minimal11, root: { ...minimal.root, props } });
     const withChildProps = (props: unknown) => ({
-      ...minimal,
+      ...minimal11,
       root: {
         ...minimal.root,
         children: [{ id: 'c', type: 'text-label', props, geometry: minimal.root.geometry }],
@@ -171,8 +174,8 @@ describe('@slaclab/canopy-screen-ir validate', () => {
     });
   });
 
-  describe('documented props: hoverLabel, outlineColor, outlineWidth', () => {
-    const withProps = (props: unknown) => ({ ...minimal, root: { ...minimal.root, props } });
+  describe('documented props: hoverLabel, hoverLabelPlacement, outlineColor, outlineWidth', () => {
+    const withProps = (props: unknown) => ({ ...minimal11, root: { ...minimal.root, props } });
 
     it('accepts a hover label, a CSS or role outline color and an outline width', () => {
       expect(validate(withProps({ hoverLabel: 'Open Booster →' }))).toEqual([]);
@@ -183,15 +186,78 @@ describe('@slaclab/canopy-screen-ir validate', () => {
       ).toEqual([]);
     });
 
+    it('accepts a macro string for hoverLabelPlacement and outlineWidth', () => {
+      expect(validate(withProps({ outlineWidth: '$(W)' }))).toEqual([]);
+      expect(validate(withProps({ hoverLabelPlacement: '${PLACEMENT}' }))).toEqual([]);
+    });
+
     it('rejects ill-typed values', () => {
       expect(validate(withProps({ hoverLabel: 5 }))).toEqual([
         '/root/props/hoverLabel must be string',
       ]);
+      // ajv reports each anyOf branch (a number, or a macro string) and the anyOf.
       expect(validate(withProps({ outlineWidth: -1 }))).toEqual([
         '/root/props/outlineWidth must be >= 0',
+        '/root/props/outlineWidth must be string',
+        '/root/props/outlineWidth must match a schema in anyOf',
       ]);
+      expect(validate(withProps({ outlineWidth: '2' })).length).toBeGreaterThan(0);
       expect(validate(withProps({ outlineColor: 7 })).length).toBeGreaterThan(0);
       expect(validate(withProps({ hoverLabelPlacement: 'middle' })).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('color-role-version', () => {
+    const role = { $role: 'alarm.major', fallback: '#ff0000' };
+    const VERSION_ERROR =
+      "schemaVersion '1.0' cannot carry a color role; a document with one must be '1.1'";
+
+    const withChild = (version: string, child: Record<string, unknown>) => ({
+      ...minimal,
+      schemaVersion: version,
+      root: {
+        ...minimal.root,
+        children: [
+          { id: 'c', type: 'text-label', props: {}, geometry: minimal.root.geometry, ...child },
+        ],
+      },
+    });
+    const conditional = (value: unknown, dflt: unknown) => ({
+      id: 'r1',
+      name: 'Color',
+      targetProperty: 'foreground',
+      default: dflt,
+      pvs: [{ name: 'SIM:PV', trigger: true }],
+      conditions: [{ expression: '{0} > 1', value }],
+    });
+
+    it.each([
+      ['a prop', { props: { foregroundColor: role } }],
+      ['a nested prop', { props: { curves: [{ color: role }] } }],
+      ['a condition value', { rules: [conditional(role, '#000000')] }],
+      ['a conditional-arm default', { rules: [conditional('#00ff00', role)] }],
+    ])('flags a 1.0 document with a role in %s of a child widget', (_label, child) => {
+      expect(validateDetailed(withChild('1.0', child))).toEqual([
+        { rule: 'color-role-version', instancePath: '/schemaVersion', message: VERSION_ERROR },
+      ]);
+      expect(validate(withChild('1.1', child))).toEqual([]);
+    });
+
+    it('reports once however many roles there are', () => {
+      const props = { foregroundColor: role, backgroundColor: role };
+      expect(validate(withChild('1.0', { props, rules: [conditional(role, role)] }))).toEqual([
+        VERSION_ERROR,
+      ]);
+    });
+
+    it('reads a props bag keyed $role and fallback as two ordinary props', () => {
+      const props = { $role: 'x', fallback: '#000000' };
+      expect(validate(withChild('1.0', { props }))).toEqual([]);
+    });
+
+    it('does not run on a document that fails the schema', () => {
+      const doc = withChild('1.0', { props: { foregroundColor: role }, geometry: undefined });
+      expect(validateDetailed(doc).map((e) => e.rule)).toEqual(['schema']);
     });
   });
 });

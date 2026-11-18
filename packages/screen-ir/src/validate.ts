@@ -2,7 +2,8 @@
 // Layered: (1) structural conformance to the JSON Schema
 // (../spec/screen-ir/screen-ir.schema.json, copied from slaclab/canopy-spec), then
 // (2) the semantic rules the schema can't express (macro defaults, formula://
-// resolution). So validate() is the FULL contract, not just the structural subset.
+// resolution, color roles only in 1.1 documents). So validate() is the FULL
+// contract, not just the structural subset.
 //
 // Rule ids and error locations follow canopy-spec's README; the spec's
 // conformance cases (spec/conformance) check both, see conformance.test.ts.
@@ -19,7 +20,8 @@ export type ValidationRule =
   | 'schema'
   | 'macro-default-required'
   | 'macro-default-forbidden'
-  | 'formula-ref-unresolved';
+  | 'formula-ref-unresolved'
+  | 'color-role-version';
 
 export interface ValidationError {
   readonly rule: ValidationRule;
@@ -76,6 +78,7 @@ export function validateDetailed(screen: unknown): ValidationError[] {
 
   checkMacroDefaults(doc, errors);
   checkFormulaRefs(doc, errors);
+  checkColorRoleVersion(doc, errors);
 
   return errors;
 }
@@ -161,6 +164,44 @@ function checkFormulaRefs(doc: ScreenLike, errors: ValidationError[]): void {
   walk(doc.root, '/root');
 }
 
+/**
+ * A `"1.0"` document must not carry a ColorRole: in a widget's props at any
+ * depth, in a condition's `value` or in a rule's `default`, in the root or any
+ * child. Reported once, at `/schemaVersion`.
+ */
+function checkColorRoleVersion(doc: ScreenLike, errors: ValidationError[]): void {
+  if (doc.schemaVersion !== '1.0' || !doc.root || !carriesColorRole(doc.root)) return;
+  errors.push({
+    rule: 'color-role-version',
+    instancePath: '/schemaVersion',
+    message: `schemaVersion '1.0' cannot carry a color role; a document with one must be '1.1'`,
+  });
+}
+
+/** Whether `node` or any widget under it holds a ColorRole in its props or at a rule position. */
+function carriesColorRole(node: WidgetLike): boolean {
+  // The props bag's own keys are prop names, so a bag such as
+  // `{ "$role": "x", "fallback": "#000000" }` is two ordinary props: look only
+  // at its values.
+  if (Object.values(node.props ?? {}).some(hasRole)) return true;
+  for (const rule of node.rules ?? []) {
+    if (hasRole(rule.default)) return true;
+    if ((rule.conditions ?? []).some((condition) => hasRole(condition.value))) return true;
+  }
+  return (node.children ?? []).some(carriesColorRole);
+}
+
+/**
+ * Whether `value` is, or contains at any depth, an object with a `$role` key. On
+ * a schema-valid document every such object at these positions is a ColorRole,
+ * so this matches canopy-spec's reference checker without re-checking its shape.
+ */
+function hasRole(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasRole);
+  if (typeof value !== 'object' || value === null) return false;
+  return '$role' in value || Object.values(value).some(hasRole);
+}
+
 /** Escape one JSON Pointer reference token (RFC 6901). */
 function pointerToken(key: string): string {
   return key.replace(/~/g, '~0').replace(/\//g, '~1');
@@ -171,6 +212,7 @@ function pointerToken(key: string): string {
 // semantic checks touch.
 
 interface ScreenLike {
+  readonly schemaVersion?: string;
   readonly kind?: 'screen' | 'template';
   readonly macros?: ReadonlyArray<{ readonly name: string; readonly default?: unknown }>;
   readonly formulas?: ReadonlyArray<{ readonly name: string }>;
@@ -179,8 +221,10 @@ interface ScreenLike {
 
 interface RuleLike {
   readonly id: string;
+  readonly default?: unknown;
   readonly formula?: unknown;
   readonly pvs?: ReadonlyArray<{ readonly name?: unknown }>;
+  readonly conditions?: ReadonlyArray<{ readonly value?: unknown }>;
 }
 
 interface WidgetLike {

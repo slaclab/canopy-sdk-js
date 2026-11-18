@@ -11,7 +11,12 @@ import { validate } from './validate.js';
 
 const ONE_ARM = '/root/children/0/rules/0 must match exactly one schema in oneOf';
 
+const COLOR_ROLE_VERSION =
+  "schemaVersion '1.0' cannot carry a color role; a document with one must be '1.1'";
+
 const EXPECTED: Readonly<Record<string, readonly string[]>> = {
+  'invalid-color-role-in-rule-default-version-1.0': [COLOR_ROLE_VERSION],
+  'invalid-color-role-in-version-1.0': [COLOR_ROLE_VERSION],
   'invalid-formula-ref-in-prop-unresolved': [
     "widget 'w-002' prop 'pv' references formula 'missing' but no formulas[] entry declares it",
   ],
