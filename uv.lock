@@ -13,6 +13,9 @@ dependencies = [
 [package.metadata]
 requires-dist = [{ name = "zensical", specifier = ">=0.0.41" }]
 
+[package.metadata.requires-dev]
+docs = []
+
 [[package]]
 name = "click"
 version = "8.3.3"
