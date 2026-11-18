@@ -1,5 +1,5 @@
 {
-  "description": "A ColorRole is legal wherever a prop holds a color: a top-level prop, `outlineColor`, and nested values such as `curves[].color`.",
+  "description": "A ColorRole may appear as any prop value: a top-level prop, `outlineColor`, and nested values such as `curves[].color`.",
   "valid": true,
   "screen": {
     "schemaVersion": "1.1",

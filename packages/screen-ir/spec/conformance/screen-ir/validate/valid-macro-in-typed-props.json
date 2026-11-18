@@ -1,0 +1,60 @@
+{
+  "description": "`outlineWidth` and `hoverLabelPlacement` take a macro string, `$(NAME)` or `${NAME}`, which a viewer expands before use.",
+  "valid": true,
+  "screen": {
+    "schemaVersion": "1.0",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [
+      {
+        "name": "W",
+        "default": "2"
+      },
+      {
+        "name": "PLACEMENT",
+        "default": "center"
+      }
+    ],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "pv-label",
+          "props": {
+            "pv": "DEMO:A",
+            "outlineWidth": "$(W)",
+            "hoverLabelPlacement": "${PLACEMENT}"
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          }
+        }
+      ]
+    }
+  }
+}

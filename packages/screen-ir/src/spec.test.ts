@@ -38,9 +38,8 @@ const specFiles = gitFiles(pkgDir, ['spec'])
 
 describe('spec copy', () => {
   it('is pinned to a canopy-spec release tag and commit', () => {
-    // Until slaclab/canopy-spec#17 is released, the copy is pinned to that
-    // PR's head; `spec:sync <tag>` to the release restores the tag-only check.
-    expect(lock).toMatchObject({ repo: 'slaclab/canopy-spec', ref: 'pull/17/head' });
+    expect(lock.repo).toBe('slaclab/canopy-spec');
+    expect(lock.ref).toMatch(/^v\d+\.\d+\.\d+$/);
     expect(lock.commit).toMatch(/^[0-9a-f]{40}$/);
   });
 

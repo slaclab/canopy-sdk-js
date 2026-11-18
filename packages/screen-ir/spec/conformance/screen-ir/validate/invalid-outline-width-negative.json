@@ -1,5 +1,5 @@
 {
-  "description": "`outlineWidth` is a non-negative number of authored px.",
+  "description": "`outlineWidth` is a non-negative number of authored px, or a macro string.",
   "valid": false,
   "errors": [
     {

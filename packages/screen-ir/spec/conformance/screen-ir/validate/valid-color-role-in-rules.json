@@ -1,5 +1,5 @@
 {
-  "description": "A ColorRole is legal at a rule position: a condition `value` and a conditional rule's `default`.",
+  "description": "A ColorRole may appear at a rule position: a condition `value` and a conditional rule's `default`.",
   "valid": true,
   "screen": {
     "schemaVersion": "1.1",
