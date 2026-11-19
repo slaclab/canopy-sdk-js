@@ -234,6 +234,30 @@ export type WriteOutcomeKind =
   | 'switch_in_progress';
 
 /**
+ * Id of one write-outcome row: the keys of `WRITE_OUTCOME_ROWS`, one per row of
+ * canopy's write-outcome vector file.
+ */
+export type WriteOutcomeRowId =
+  | 'connector-refused'
+  | 'connector-refused-read-only'
+  | 'connector-limits'
+  | 'connector-target-changed'
+  | 'connector-switch-in-progress'
+  | 'confirmed'
+  | 'mismatch'
+  | 'unconfirmed'
+  | 'connector-unknown'
+  | 'writes-not-enabled'
+  | 'front-refused-401'
+  | 'front-refused-403'
+  | 'front-refused-404'
+  | 'front-refused-413'
+  | 'client-unknown'
+  | 'target-changed'
+  | 'write-state-changed'
+  | 'coalesced';
+
+/**
  * What `HarePVService.submit()` resolves to: one write-outcome row. `detail` is always
  * toast-ready text (never a raw response body). `status`/`code` are the HTTP
  * status and envelope code when a response arrived, else null. `coalesced` is
@@ -242,6 +266,16 @@ export type WriteOutcomeKind =
  */
 export interface WriteOutcome {
   outcome: WriteOutcomeKind;
+  /**
+   * The row this outcome came from, which tells apart outcomes that share a
+   * kind, status and code: `connector-refused-read-only` and
+   * `front-refused-403` from `connector-refused`, `write-state-changed` from
+   * `target-changed`. A server row with fixed text is recognised by that text;
+   * `connector-limits` reads as `connector-refused`, as nothing on the wire
+   * tells them apart. A coalesced outcome carries the newer value's row, so
+   * `coalesced` itself is never a `row`.
+   */
+  row: Exclude<WriteOutcomeRowId, 'coalesced'>;
   code: string | null;
   status: number | null;
   detail: string;

@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
+import { HarePVService } from '../hare/HarePVService.js';
+import type { HareHeartbeatState, WriteOutcome } from '../hare/types.js';
+import { createFakeWebSocketFactory } from '../testing/fakeWebSocket.js';
 import { LocalPVService, parseLocUrl } from './LocalPVService.js';
 import { RoutedPVService } from './RoutedPVService.js';
 import { MockPVService } from './MockPVService.js';
+import type { PVService } from './PVService.js';
+
+const WRITTEN: WriteOutcome = {
+  outcome: 'confirmed',
+  row: 'confirmed',
+  code: null,
+  status: null,
+  detail: 'written',
+  coalesced: false,
+};
 
 describe('parseLocUrl', () => {
   it('parses the declaring form', () => {
@@ -126,6 +139,43 @@ describe('LocalPVService', () => {
     expect(a.mock.lastCall![0].value).toBe(3);
     expect(b.mock.lastCall![0].value).toBe(3);
     expect(service.getSnapshot('loc://sel')?.value).toBe(3);
+  });
+
+  it('submit() writes like put(), at once, and resolves confirmed with no status or code', async () => {
+    const service = new LocalPVService();
+    const a = vi.fn();
+    const b = vi.fn();
+    service.subscribe('loc://sel?type=int&init=0', a);
+    service.subscribe('loc://sel', b);
+    // Through the interface, options and all: they mean nothing to a local.
+    const pv: PVService = service;
+    const got = pv.submit!('loc://sel', 3, { binding: 'sim@1', confirmed: true });
+    // Applied before the promise settles.
+    expect(a.mock.lastCall![0]).toMatchObject({ value: 3, displayValue: '3', connected: true });
+    expect(b.mock.lastCall![0].value).toBe(3);
+    await expect(got).resolves.toEqual(WRITTEN);
+    // An undeclared name is written all the same, as put() does.
+    await expect(service.submit('loc://fresh', 'on')).resolves.toEqual(WRITTEN);
+    expect(service.getSnapshot('loc://fresh')).toMatchObject({
+      value: 'on',
+      valueKind: 'string',
+      connected: true,
+    });
+  });
+
+  it('submit() stores a boolean as 1 or 0, and an array as numbers, else as text', async () => {
+    const service = new LocalPVService();
+    await service.submit('loc://flag', true);
+    expect(service.getSnapshot('loc://flag')).toMatchObject({ value: 1, valueKind: 'scalar' });
+    await service.submit('loc://wave', [1, false, 2.5]);
+    expect(service.getSnapshot('loc://wave')).toMatchObject({
+      value: [1, 0, 2.5],
+      valueKind: 'waveform',
+    });
+    await service.submit('loc://names', ['a', 1, true]);
+    expect(service.getSnapshot('loc://names')?.value).toEqual(['a', '1', '1']);
+    await service.submit('loc://empty', []);
+    expect(service.getSnapshot('loc://empty')?.value).toEqual([]);
   });
 
   it('re-declaration does not reset an initialized local (first wins)', () => {
@@ -345,5 +395,70 @@ describe('RoutedPVService', () => {
 
     routed.put('loc://x', 6);
     expect(local.getSnapshot('loc://x')?.value).toBe(6);
+  });
+
+  it('submit() goes to the routed service: a loc:// write needs no live fallback', async () => {
+    const local = new LocalPVService();
+    const fetchFn = vi.fn();
+    // Never connected: Hare has seen no heartbeat, so its own writes are refused unsent.
+    const hare = new HarePVService({ url: 'ws://host/hare/v1/ws/pvs', fetchFn });
+    const routed = new RoutedPVService({ 'loc://': local }, hare);
+
+    await expect(routed.submit('loc://x', 6)).resolves.toEqual(WRITTEN);
+    expect(local.getSnapshot('loc://x')?.value).toBe(6);
+    expect((await routed.submit('SIM:PV1', 1)).row).toBe('target-changed');
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('submit() passes the options through to the routed service', async () => {
+    const outcome: WriteOutcome = { ...WRITTEN, status: 200 };
+    const fallback = Object.assign(new MockPVService(), { submit: vi.fn(async () => outcome) });
+    const routed = new RoutedPVService({ 'loc://': new LocalPVService() }, fallback);
+    const options = { binding: 'sim@3', confirmed: true, origin: { screen: 'sim/main' } };
+    await expect(routed.submit('SIM:PV1', [1, 2], options)).resolves.toBe(outcome);
+    expect(fallback.submit).toHaveBeenCalledExactlyOnceWith('SIM:PV1', [1, 2], options);
+  });
+
+  it('submit() to a service without one writes nothing and resolves writes-not-enabled', async () => {
+    const put = vi.fn();
+    const bare: PVService = {
+      subscribe: () => () => {},
+      put,
+      getSnapshot: () => undefined,
+      connect: () => {},
+      disconnect: () => {},
+      isConnected: true,
+    };
+    const routed = new RoutedPVService({ 'loc://': new LocalPVService() }, bare);
+    await expect(routed.submit('SIM:PV1', 1)).resolves.toEqual({
+      outcome: 'refused',
+      row: 'writes-not-enabled',
+      code: null,
+      status: null,
+      detail: 'writes are not enabled on this server',
+      coalesced: false,
+    });
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it('heartbeat() is the fallback’s, else a routed service’s, and absent when none has one', () => {
+    const { factory, instances } = createFakeWebSocketFactory();
+    const hare = new HarePVService({ url: 'ws://host/hare/v1/ws/pvs', webSocketFactory: factory });
+    const routed = new RoutedPVService({ 'loc://': new LocalPVService() }, hare);
+    expect(routed.heartbeat?.()).toEqual({ seen: false, binding: null });
+    hare.connect();
+    instances[0]!.open();
+    instances[0]!.message({ type: 'heartbeat', timestamp: 0, backend: 'sim', binding: 'sim@1' });
+    expect(routed.heartbeat?.()).toEqual({ seen: true, binding: 'sim@1' });
+
+    const state: HareHeartbeatState = { seen: true, binding: 'sim@2' };
+    const beating = Object.assign(new MockPVService(), { heartbeat: () => state });
+    expect(new RoutedPVService({ 'pva://': beating }, new MockPVService()).heartbeat?.()).toBe(
+      state
+    );
+
+    const none = new RoutedPVService({ 'loc://': new LocalPVService() }, new MockPVService());
+    expect(none.heartbeat).toBeUndefined();
+    expect('heartbeat' in none).toBe(false);
   });
 });

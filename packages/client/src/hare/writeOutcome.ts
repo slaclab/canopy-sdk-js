@@ -12,19 +12,24 @@
 // describes the fields of a row; the canopy server and this client both map
 // their outcomes from it.
 //
-// This table mirrors each row's `outcome`, `status`, `code` and `default`; a
-// vitest (submit.test.ts) checks it against a byte copy of the vector file
-// (packages/client/test-vectors/write_outcome_vectors.json). Edit both
-// together, and change the vector file in canopy first.
+// This table mirrors each row's `outcome`, `status`, `code`, `default` and
+// `dynamic`; a vitest (submit.test.ts) checks it against a byte copy of the
+// vector file (packages/client/test-vectors/write_outcome_vectors.json). Edit
+// both together, and change the vector file in canopy first. Every
+// `WriteOutcome` names the row it came from (`row`).
 
-import type { WriteOutcome, WriteOutcomeKind } from './types.js';
+import type { WriteOutcome, WriteOutcomeKind, WriteOutcomeRowId } from './types.js';
 
-/** One write-outcome row as the client needs it: `detail` is the row's default (toast-ready) text. */
+/**
+ * One write-outcome row as the client needs it: `detail` is the row's default
+ * (toast-ready) text; `dynamic` is true when the server fills in its own text.
+ */
 export interface WriteOutcomeRow {
-  outcome: WriteOutcomeKind | null;
-  status: number | null;
-  code: string | null;
-  detail: string | null;
+  readonly outcome: WriteOutcomeKind | null;
+  readonly status: number | null;
+  readonly code: string | null;
+  readonly detail: string | null;
+  readonly dynamic: boolean;
 }
 
 /**
@@ -63,108 +68,140 @@ const WRITES_CHANGED = 'the write state of this target changed; nothing written'
 const UNKNOWN = 'outcome unknown — check the readback';
 const FRONT_REFUSED = 'the panel server refused this write; nothing written';
 
-/** Every write-outcome row by id, mirroring the vector file. */
-export const WRITE_OUTCOME_ROWS: Readonly<Record<string, WriteOutcomeRow>> = {
+/** Freeze every row and then the table, so no caller can edit the shared rows. */
+function frozenRows(
+  rows: Record<WriteOutcomeRowId, WriteOutcomeRow>
+): Readonly<Record<WriteOutcomeRowId, WriteOutcomeRow>> {
+  for (const row of Object.values(rows)) Object.freeze(row);
+  return Object.freeze(rows);
+}
+
+/** Every write-outcome row by id, mirroring the vector file; frozen. */
+export const WRITE_OUTCOME_ROWS: Readonly<Record<WriteOutcomeRowId, WriteOutcomeRow>> = frozenRows({
   'connector-refused': {
     outcome: 'refused',
     status: 403,
     code: 'pv_write_refused',
     detail: REFUSED_GENERIC,
+    dynamic: true,
   },
   'connector-refused-read-only': {
     outcome: 'refused',
     status: 403,
     code: 'pv_write_refused',
     detail: 'the whole deployment is running read-only; nothing written',
+    dynamic: false,
   },
   'connector-limits': {
     outcome: 'refused',
     status: 403,
     code: 'pv_write_refused',
     detail: REFUSED_GENERIC,
+    dynamic: true,
   },
   'connector-target-changed': {
     outcome: 'target_changed',
     status: 409,
     code: 'pv_target_changed',
     detail: 'the control target changed; nothing written',
+    dynamic: false,
   },
   'connector-switch-in-progress': {
     outcome: 'switch_in_progress',
     status: 409,
     code: 'pv_switch_in_progress',
     detail: 'a target switch is in progress; nothing written',
+    dynamic: false,
   },
-  confirmed: { outcome: 'confirmed', status: 200, code: null, detail: 'written' },
+  confirmed: { outcome: 'confirmed', status: 200, code: null, detail: 'written', dynamic: false },
   mismatch: {
     outcome: 'mismatch',
     status: 409,
     code: 'pv_write_mismatch',
     detail: 'written; the channel holds a different value',
+    dynamic: true,
   },
   unconfirmed: {
     outcome: 'unconfirmed',
     status: 502,
     code: 'pv_write_unconfirmed',
     detail: 'sent, not verified',
+    dynamic: false,
   },
   'connector-unknown': {
     outcome: 'unknown',
     status: 502,
     code: 'pv_write_unknown',
     detail: UNKNOWN,
+    dynamic: false,
   },
   'writes-not-enabled': {
     outcome: 'refused',
     status: 405,
     code: null,
     detail: 'writes are not enabled on this server',
+    dynamic: false,
   },
   'front-refused-401': {
     outcome: 'refused',
     status: 401,
     code: 'invalid_access_credential',
     detail: FRONT_REFUSED,
+    dynamic: false,
   },
   'front-refused-403': {
     outcome: 'refused',
     status: 403,
     code: 'pv_write_refused',
     detail: FRONT_REFUSED,
+    dynamic: false,
   },
   'front-refused-404': {
     outcome: 'refused',
     status: 404,
     code: 'pv_write_refused',
     detail: FRONT_REFUSED,
+    dynamic: false,
   },
   'front-refused-413': {
     outcome: 'refused',
     status: 413,
     code: 'pv_write_refused',
     detail: FRONT_REFUSED,
+    dynamic: false,
   },
-  'client-unknown': { outcome: 'unknown', status: null, code: null, detail: UNKNOWN },
+  'client-unknown': {
+    outcome: 'unknown',
+    status: null,
+    code: null,
+    detail: UNKNOWN,
+    dynamic: false,
+  },
   'target-changed': {
     outcome: 'target_changed',
     status: null,
     code: null,
     detail: TARGET_OR_WRITES_CHANGED,
+    dynamic: false,
   },
   'write-state-changed': {
     outcome: 'target_changed',
     status: null,
     code: null,
     detail: WRITES_CHANGED,
+    dynamic: true,
   },
-  coalesced: { outcome: null, status: null, code: null, detail: null },
-};
+  coalesced: { outcome: null, status: null, code: null, detail: null, dynamic: false },
+});
 
 /**
  * The viewer's toast for a run stopped by a coalesced write (row
  * `coalesced`). A coalesced outcome itself is never toasted.
  */
 export const WRITE_OUTCOME_COALESCED_TOAST = 'a newer value replaced this one; nothing more sent';
+
+/** A row an outcome can name: every row but `coalesced`, which has no outcome of its own. */
+type OutcomeRowId = WriteOutcome['row'];
 
 /**
  * How each recognised envelope code maps: the row whose outcome it takes and
@@ -173,7 +210,7 @@ export const WRITE_OUTCOME_COALESCED_TOAST = 'a newer value replaced this one; n
  * detail; FRONT's access gate (`invalid_access_credential`) does not, so its
  * row text is used. Any other code is row `client-unknown`.
  */
-const CODE_ROWS: Readonly<Record<string, { row: string; serverDetail: boolean }>> = {
+const CODE_ROWS: Readonly<Record<string, { row: OutcomeRowId; serverDetail: boolean }>> = {
   pv_write_refused: { row: 'connector-refused', serverDetail: true },
   pv_target_changed: { row: 'connector-target-changed', serverDetail: true },
   pv_switch_in_progress: { row: 'connector-switch-in-progress', serverDetail: true },
@@ -188,19 +225,39 @@ const CODE_ROWS: Readonly<Record<string, { row: string; serverDetail: boolean }>
  * exported from this module only so the outcome-table test can check it
  * against the vector file.
  */
-export const WRITE_OUTCOME_CODE_ROWS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(CODE_ROWS).map(([code, { row }]) => [code, row])
+export const WRITE_OUTCOME_CODE_ROWS: Readonly<Record<string, WriteOutcomeRowId>> = Object.freeze(
+  Object.fromEntries(Object.entries(CODE_ROWS).map(([code, { row }]) => [code, row]))
 );
 
+/**
+ * Server rows with fixed text (`dynamic: false`), in table order. Such a row
+ * shares its status and code with others (`front-refused-403` and
+ * `connector-refused-read-only` with `connector-refused`); the server sends its
+ * text verbatim, so that text tells the row.
+ */
+const FIXED_SERVER_ROWS = (Object.keys(WRITE_OUTCOME_ROWS) as OutcomeRowId[]).filter((id) => {
+  const row = WRITE_OUTCOME_ROWS[id];
+  return !row.dynamic && row.status !== null && row.code !== null;
+});
+
+/** The fixed server row with this status, code and detail, if there is one. */
+function fixedServerRow(status: number, code: string, detail: string): OutcomeRowId | undefined {
+  return FIXED_SERVER_ROWS.find((id) => {
+    const row = WRITE_OUTCOME_ROWS[id];
+    return row.status === status && row.code === code && row.detail === detail;
+  });
+}
+
 function rowOutcome(
-  rowId: string,
+  rowId: OutcomeRowId,
   status: number | null,
   code: string | null,
   detail?: string
 ): WriteOutcome {
-  const row = WRITE_OUTCOME_ROWS[rowId]!;
+  const row = WRITE_OUTCOME_ROWS[rowId];
   return {
     outcome: row.outcome!,
+    row: rowId,
     code,
     status,
     detail: detail ?? row.detail!,
@@ -212,7 +269,10 @@ function rowOutcome(
 const WRITES_CHANGED_TEMPLATE = 'the write state of <label> changed; nothing written';
 
 /** A row the client answers itself, with no request sent or no reply. */
-export type ClientRowId = 'client-unknown' | 'target-changed' | 'write-state-changed';
+export type ClientRowId = Extract<
+  WriteOutcomeRowId,
+  'client-unknown' | 'target-changed' | 'write-state-changed'
+>;
 
 /**
  * A client-side row that sent no request or got no reply: `client-unknown`,
@@ -230,6 +290,17 @@ export function clientOutcome(rowId: ClientRowId, label?: string | null): WriteO
       WRITES_CHANGED_TEMPLATE.replace('<label>', () => label)
     );
   }
+  return rowOutcome(rowId, null, null);
+}
+
+/**
+ * The outcome a PV service answers itself, with no server and no reply
+ * (`LocalPVService`, `MockPVService`, `RoutedPVService`): the row's default
+ * text, no status or code. Not part of the package's public API.
+ */
+export function serviceOutcome(
+  rowId: Extract<WriteOutcomeRowId, 'confirmed' | 'connector-refused' | 'writes-not-enabled'>
+): WriteOutcome {
   return rowOutcome(rowId, null, null);
 }
 
@@ -263,7 +334,10 @@ function jsonObject(bodyText: string): Record<string, unknown> | null {
  * compared); any other 2xx body — a followed redirect's login page, an empty
  * body — is `client-unknown`. Other statuses map by envelope code, and a 405
  * with none is `writes-not-enabled` (generic canopy with the relay off). An
- * unrecognised code, or a non-2xx with no envelope, is `client-unknown`.
+ * unrecognised code, or a non-2xx with no envelope, is `client-unknown`. Among
+ * the rows a code maps to, a fixed-text row is the one whose status and text
+ * the reply carries (`front-refused-403`, `connector-refused-read-only`);
+ * otherwise the code's own row.
  */
 export function outcomeFromResponse(
   ok: boolean,
@@ -285,6 +359,8 @@ export function outcomeFromResponse(
   const code = typeof envelope?.code === 'string' ? envelope.code : null;
   const mapping = code !== null && Object.hasOwn(CODE_ROWS, code) ? CODE_ROWS[code] : undefined;
   if (!mapping) return rowOutcome('client-unknown', status, code);
-  const detail = mapping.serverDetail ? toastText(envelope?.detail) : undefined;
-  return rowOutcome(mapping.row, status, code, detail);
+  if (!mapping.serverDetail) return rowOutcome(mapping.row, status, code);
+  const detail = toastText(envelope?.detail);
+  const fixed = detail === undefined ? undefined : fixedServerRow(status, code!, detail);
+  return rowOutcome(fixed ?? mapping.row, status, code, detail);
 }
