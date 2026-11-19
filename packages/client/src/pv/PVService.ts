@@ -1,5 +1,12 @@
 import type { AlarmSeverity } from '../alarm.js';
-import type { TableValue } from '../hare/types.js';
+import type {
+  HareHeartbeatState,
+  PVWriteValue,
+  SubmitOptions,
+  TableValue,
+  ValueKind,
+  WriteOutcome,
+} from '../hare/types.js';
 
 // ── PV Data Types ───────────────────────────────────────────────────────────
 
@@ -15,8 +22,23 @@ export interface PVData {
   precision: number;
   lowerLimit: number;
   upperLimit: number;
-  /** Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined otherwise. */
+  /**
+   * Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined
+   * otherwise, and on `HarePVService`'s disconnected copies.
+   */
   enumChoices?: string[];
+  /**
+   * The value's kind as last reported by the source (a Hare diff/initial, or
+   * the type a local/mock service stored). `HarePVService`'s disconnected
+   * copies keep the previous snapshot's kind, else the kind of the frame that
+   * reported the disconnect, and hold the empty value of that kind (waveform
+   * `[]`, string `''`, table with no labels or columns, anything else `0`).
+   * `LocalPVService.clear()` instead keeps each local's last value and kind,
+   * marked disconnected. Absent when no kind is known — `DISCONNECTED_PV`
+   * itself never carries one — so a missing kind is "unknown", never an
+   * implied `'scalar'`.
+   */
+  valueKind?: ValueKind;
 }
 
 export type PVListener = (data: PVData) => void;
@@ -26,6 +48,18 @@ export type PVListener = (data: PVData) => void;
 export interface PVService {
   subscribe(pvName: string, listener: PVListener): () => void;
   put(pvName: string, value: number | string | boolean): void;
+  /**
+   * Write one value and resolve its write outcome; never rejects. The checked
+   * path for writes a person makes from a screen (see `HarePVService.submit()`).
+   * Optional: a service without it has no checked writes. `LocalPVService`
+   * and `MockPVService` apply the value in memory and resolve at once.
+   */
+  submit?(pvName: string, value: PVWriteValue, options?: SubmitOptions): Promise<WriteOutcome>;
+  /**
+   * Heartbeat state of the service's control-target link (see
+   * `HarePVService.heartbeat()`). Only a service with a control target has one.
+   */
+  heartbeat?(): HareHeartbeatState;
   getSnapshot(pvName: string): PVData | undefined;
   connect(): void;
   disconnect(): void;

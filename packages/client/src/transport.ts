@@ -60,8 +60,17 @@ export type HostBlob = typeof globalThis extends {
  * without a body. At runtime `canopyFetch` also passes `signal` when the
  * caller provided one (not declared here so the global `fetch` stays
  * assignable).
+ *
+ * `redirect` and `type` are optional so a minimal fetch stays assignable;
+ * `HarePVService.submit` sends `redirect: 'manual'` and reads `type` to see an
+ * unfollowed redirect (`'opaqueredirect'`).
  */
 export type FetchLike = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body?: string | HostFormData }
-) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string | HostFormData;
+    redirect?: 'follow' | 'manual' | 'error';
+  }
+) => Promise<{ ok: boolean; status: number; type?: string; text(): Promise<string> }>;

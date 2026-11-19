@@ -6,13 +6,24 @@ import {
   toWsUrl,
 } from '../ws/ResilientSocket.js';
 import type { SocketFrame } from '../ws/ResilientSocket.js';
-import type { FormulaResultDTO, FormulaSpec, FormulaEngineServerFrame } from './types.js';
+import type {
+  FormulaResultDTO,
+  FormulaSpec,
+  FormulaEngineServerFrame,
+  TableInputDTO,
+} from './types.js';
 
 export type FormulaEngineConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
 
 export interface FormulaEngineError {
   code: string;
   message: string;
+  /**
+   * True when the condition is transient and the subscription stays live
+   * (the server keeps evaluating, or the service reconnects); false for a
+   * terminal reject. A server frame without the flag reads as false.
+   */
+  retryable: boolean;
 }
 
 export interface FormulaEngineServiceOptions {
@@ -45,7 +56,11 @@ export interface FormulaEngineServiceOptions {
    * which never stops the service; pass `[]` to always reconnect.
    */
   terminalCloseCodes?: number[];
-  /** Connection-level errors and error frames that match no subscription. */
+  /**
+   * Connection-level errors and error frames that match no subscription. Also
+   * the errors of subscriptions without their own `onError`; a lost connection
+   * reaches it as one `ws_disconnected` for all of them.
+   */
   onError?: (error: FormulaEngineError) => void;
   onStatusChange?: (status: FormulaEngineConnectionStatus) => void;
 }
@@ -64,7 +79,10 @@ export interface FormulaEngineSubscribeOptions {
   /** When > 0, the server re-evaluates on this timer instead of on PV change. */
   intervalMs?: number;
   onResult: (data: FormulaResultDTO) => void;
-  /** Errors scoped to this subscription. Falls back to the service-level onError. */
+  /**
+   * Errors scoped to this subscription; `ws_disconnected` once when an open
+   * connection is lost. Falls back to the service-level onError.
+   */
   onError?: (error: FormulaEngineError) => void;
 }
 
@@ -109,6 +127,12 @@ export class FormulaEngineService {
   /** Subscribe frames sent on the current socket, awaiting `subscribed` replies (FIFO). */
   private pending: LocalSubscription[] = [];
   private byServerId = new Map<string, LocalSubscription>();
+  /**
+   * True from a socket's open until it closes (or `dispose()`): only the close
+   * of a socket that opened ends live evaluations, so a reconnect attempt that
+   * never opened reports nothing.
+   */
+  private socketOpened = false;
 
   private _status: FormulaEngineConnectionStatus = 'idle';
 
@@ -124,12 +148,20 @@ export class FormulaEngineService {
       webSocketFactory: options.webSocketFactory,
       terminalCloseCodes: options.terminalCloseCodes,
       label: 'FormulaEngineService',
-      onOpen: () => this.resubscribeAll(),
+      onOpen: () => {
+        this.socketOpened = true;
+        this.resubscribeAll();
+      },
       onFrame: (frame) => this.handleFrame(frame),
-      onClose: () => this.resetServerCorrelation(),
+      onClose: () => this.handleSocketClose(),
       onStatusChange: (status) => this.setStatus(toServiceStatus(status)),
       onError: (error) =>
-        this.reportError({ code: error.code, message: describeSocketError(error, 'formula') }),
+        this.reportError({
+          code: error.code,
+          message: describeSocketError(error, 'formula'),
+          // A failed open schedules a reconnect; a terminal close stops the service.
+          retryable: error.code === 'ws_connect_failed',
+        }),
     });
   }
 
@@ -154,6 +186,7 @@ export class FormulaEngineService {
    */
   dispose(): void {
     this.resetServerCorrelation();
+    this.socketOpened = false;
     this.socket.close();
   }
 
@@ -209,6 +242,39 @@ export class FormulaEngineService {
 
   // ── Connection callbacks ──────────────────────────────────────────────────
 
+  /** The socket dropped on its own (an explicit `dispose()` never gets here). */
+  private handleSocketClose(): void {
+    this.resetServerCorrelation();
+    // A socket that never opened carried no evaluation: the outage, if any,
+    // was reported when the last open socket closed. So `ws_disconnected`
+    // reaches each subscription at most once per outage.
+    const opened = this.socketOpened;
+    this.socketOpened = false;
+    if (!opened) return;
+
+    // Every held subscription loses its live evaluation with the socket. Tell
+    // each one, so a consumer stops presenting its last result as current;
+    // retryable while the service reconnects (the subscription is kept and
+    // re-sent on reconnect), not after a terminal close stopped it. The
+    // subscriptions without their own onError share one service-level error.
+    // Iterate a copy: a callback may unsubscribe.
+    const error: FormulaEngineError = {
+      code: 'ws_disconnected',
+      message: 'Formula connection lost.',
+      retryable: this.socket.status !== 'closed',
+    };
+    let unhandled = false;
+    for (const sub of [...this.subscriptions]) {
+      if (!this.subscriptions.has(sub)) continue;
+      if (sub.onError) {
+        sub.onError({ ...error });
+      } else {
+        unhandled = true;
+      }
+    }
+    if (unhandled) this.reportError(error);
+  }
+
   /** Server-assigned ids die with their socket; forget all reply correlation. */
   private resetServerCorrelation(): void {
     this.pending = [];
@@ -240,7 +306,7 @@ export class FormulaEngineService {
       case 'result': {
         const sub = this.byServerId.get(frame.id);
         // Unknown id: a frame that raced our unsubscribe. Drop it.
-        sub?.onResult(frame.data);
+        sub?.onResult(normalizeResult(frame.data));
         break;
       }
       case 'completed':
@@ -248,7 +314,11 @@ export class FormulaEngineService {
         // subscription stays held until the caller unsubscribes.
         break;
       case 'error':
-        this.handleErrorFrame(frame.id, { code: frame.code, message: frame.message });
+        this.handleErrorFrame(frame.id, {
+          code: frame.code,
+          message: frame.message,
+          retryable: frame.retryable ?? false,
+        });
         break;
       case 'pong':
         // Liveness only (the socket already counted it).
@@ -339,4 +409,25 @@ export class FormulaEngineService {
       console.warn(`[FormulaEngineService] ${error.code}: ${error.message}`);
     }
   }
+}
+
+/**
+ * Fill wire defaults the server may omit: a missing `scalar`, `timeseries` or
+ * `waveform` reads as null (a `'table'` frame carries only `{ kind, table }`),
+ * and a `'table'` input without `lateAfterFinal` reads as `false`.
+ */
+function normalizeResult(data: FormulaResultDTO): FormulaResultDTO {
+  const filled: FormulaResultDTO = {
+    ...data,
+    scalar: data.scalar ?? null,
+    timeseries: data.timeseries ?? null,
+    waveform: data.waveform ?? null,
+  };
+  const table = data.table;
+  if (!table?.inputs) return filled;
+  const inputs: Record<string, TableInputDTO> = {};
+  for (const [binding, input] of Object.entries(table.inputs)) {
+    inputs[binding] = { ...input, lateAfterFinal: input.lateAfterFinal ?? false };
+  }
+  return { ...filled, table: { ...table, inputs } };
 }
