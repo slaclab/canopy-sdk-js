@@ -8,6 +8,9 @@ export const HOST_THEME_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 /** Major version of the host contract this shell is written against. */
 const CONTRACT_MAJOR = '1';
 
+/** The Carbon zone classes whose hosted rules read what a host sets on the anchor. */
+const ZONE = '.cds--white, .cds--g10, .cds--g90, .cds--g100';
+
 /**
  * The colour mode a theme id stands for: `light` and every `*-light` id are
  * light, everything else is dark.
@@ -32,7 +35,9 @@ export interface HostThemeAnchorProps {
  * falls back to `mode`, so the raw string never reaches the DOM unchecked. An
  * id the app does not know still passes: the host's sheet decides what it means.
  *
- * Spread `anchorProps` on the root element and attach `anchorRef` to it. After
+ * Spread `anchorProps` on the root element and attach `anchorRef` to it; that
+ * element must be the Carbon zone element (the one Carbon's `<Theme>` renders),
+ * or the host's values never reach it. After
  * mount the hook sets `data-theme` on `<html>` of the anchor's own document to
  * `mode` (a root rendered into a detached window follows that window, not the
  * opener). While that document still carries the host marker
@@ -40,8 +45,9 @@ export interface HostThemeAnchorProps {
  * `--canopy-host-contract` version from the anchor once for each valid theme
  * id the host asks for, and warns when that version is missing or has a
  * different major. Nothing is read while the host has sent no valid id: a host
- * sheet may declare the version under its theme ids only. The theme applies
- * either way.
+ * sheet may declare the version under its theme ids only. In that document it
+ * also warns once per mount when the anchor has no Carbon zone class. The
+ * theme applies either way.
  *
  * @param raw - Theme id requested by the host, or `null` when there is none.
  * @param mode - Colour mode of the app; the fallback id and the document theme.
@@ -56,6 +62,7 @@ export function useHostTheme<E extends HTMLElement = HTMLElement>(
   const anchorRef = useRef<E | null>(null);
   // The ids whose contract version this root has read.
   const checked = useRef<Set<string> | null>(null);
+  const zoneChecked = useRef(false);
 
   useLayoutEffect(() => {
     const el = anchorRef.current;
@@ -63,7 +70,18 @@ export function useHostTheme<E extends HTMLElement = HTMLElement>(
     const doc = el.ownerDocument;
     doc.documentElement.dataset.theme = mode;
 
-    if (!valid || doc.documentElement.dataset.canopyHost === undefined) return;
+    if (doc.documentElement.dataset.canopyHost === undefined) return;
+    if (!zoneChecked.current) {
+      zoneChecked.current = true;
+      if (!el.matches(ZONE)) {
+        console.warn(
+          `canopy: the host theme anchor is not a Carbon zone element (${ZONE}), so the ` +
+            "host's values never apply; put anchorRef and anchorProps on Carbon's <Theme>"
+        );
+      }
+    }
+
+    if (!valid) return;
     const seen = (checked.current ??= new Set());
     if (seen.has(id)) return;
     seen.add(id);

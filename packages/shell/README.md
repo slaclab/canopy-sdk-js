@@ -480,8 +480,9 @@ hosted rules of `host-contract.css` match the zone class and read the
 `--canopy-host-*` properties that the host sets on the anchor, so they see the
 host's values only when both are on the same element. An anchor nested inside
 the zone comes too late: the zone has already resolved every `--canopy-*` name
-to Carbon's value, and the anchor inherits those. See the example under
-[Helpers](#helpers).
+to Carbon's value, and the anchor inherits those. In a hosted document
+`useHostTheme` warns once in the console when the anchor has none of the four
+zone classes. See the example under [Helpers](#helpers).
 
 - **`data-canopy-host-root`.** Marks the anchor: the element on which the host
   sets its `--canopy-host-*` properties and which fills the viewport with the
