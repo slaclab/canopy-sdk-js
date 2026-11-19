@@ -1,3 +1,10 @@
+import type {
+  HareHeartbeatState,
+  PVWriteValue,
+  SubmitOptions,
+  WriteOutcome,
+} from '../hare/types.js';
+import { serviceOutcome } from '../hare/writeOutcome.js';
 import type { PVService, PVData, PVListener } from './PVService.js';
 
 /**
@@ -10,9 +17,20 @@ export class RoutedPVService implements PVService {
   private readonly routes: ReadonlyArray<[prefix: string, service: PVService]>;
   private readonly fallback: PVService;
 
+  /**
+   * The heartbeat of the fallback, else of the first routed service that has
+   * one. Absent when no service here has a heartbeat, as on the services
+   * themselves.
+   */
+  declare readonly heartbeat?: () => HareHeartbeatState;
+
   constructor(routes: Record<string, PVService>, fallback: PVService) {
     this.routes = Object.entries(routes);
     this.fallback = fallback;
+    const beating = [fallback, ...this.routes.map(([, service]) => service)].find(
+      (service) => service.heartbeat
+    );
+    if (beating) this.heartbeat = () => beating.heartbeat!();
   }
 
   private serviceFor(pvName: string): PVService {
@@ -28,6 +46,17 @@ export class RoutedPVService implements PVService {
 
   put(pvName: string, value: number | string | boolean): void {
     this.serviceFor(pvName).put(pvName, value);
+  }
+
+  /**
+   * A checked write through the service `pvName` routes to. A service without
+   * `submit` writes nothing and resolves `writes-not-enabled` (its unchecked
+   * `put` never stands in for a checked write).
+   */
+  submit(pvName: string, value: PVWriteValue, options?: SubmitOptions): Promise<WriteOutcome> {
+    const service = this.serviceFor(pvName);
+    if (!service.submit) return Promise.resolve(serviceOutcome('writes-not-enabled'));
+    return service.submit(pvName, value, options);
   }
 
   getSnapshot(pvName: string): PVData | undefined {

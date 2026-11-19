@@ -293,6 +293,17 @@ export function clientOutcome(rowId: ClientRowId, label?: string | null): WriteO
   return rowOutcome(rowId, null, null);
 }
 
+/**
+ * The outcome a PV service answers itself, with no server and no reply
+ * (`LocalPVService`, `MockPVService`, `RoutedPVService`): the row's default
+ * text, no status or code. Not part of the package's public API.
+ */
+export function serviceOutcome(
+  rowId: Extract<WriteOutcomeRowId, 'confirmed' | 'connector-refused' | 'writes-not-enabled'>
+): WriteOutcome {
+  return rowOutcome(rowId, null, null);
+}
+
 /** Trimmed server detail cut to the cap, or undefined when it is not usable text. */
 function toastText(detail: unknown): string | undefined {
   if (typeof detail !== 'string') return undefined;
