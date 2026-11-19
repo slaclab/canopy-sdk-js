@@ -315,7 +315,7 @@ describe('FormulaEngineService', () => {
       expect(service.status).toBe('disconnected');
     });
 
-    it('falls back to the service-level onError for a subscription without its own onError', () => {
+    it('falls back to one service-level error for all the subscriptions without their own onError', () => {
       const { factory, instances } = createFakeWebSocketFactory();
       const serviceOnError = vi.fn<(error: FormulaEngineError) => void>();
       const service = new FormulaEngineService({
@@ -330,6 +330,8 @@ describe('FormulaEngineService', () => {
       const onErrorA = vi.fn<(error: FormulaEngineError) => void>();
       service.subscribe(makeSpec({ expression: 'A' }), { onResult: vi.fn(), onError: onErrorA });
       service.subscribe(makeSpec({ expression: 'B' }), { onResult: vi.fn() });
+      service.subscribe(makeSpec({ expression: 'C' }), { onResult: vi.fn() });
+      service.subscribe(makeSpec({ expression: 'D' }), { onResult: vi.fn() });
       socket.message({ type: 'subscribed', id: 'srv-a' });
       socket.message({ type: 'subscribed', id: 'srv-b' });
 
@@ -337,6 +339,23 @@ describe('FormulaEngineService', () => {
 
       expect(onErrorA).toHaveBeenCalledExactlyOnceWith(WS_DISCONNECTED);
       expect(serviceOnError).toHaveBeenCalledExactlyOnceWith(WS_DISCONNECTED);
+    });
+
+    it('reports nothing at the service level when every subscription has its own onError', () => {
+      const { factory, instances } = createFakeWebSocketFactory();
+      const serviceOnError = vi.fn<(error: FormulaEngineError) => void>();
+      const service = new FormulaEngineService({
+        baseUrl: BASE_URL,
+        webSocketFactory: factory,
+        onError: serviceOnError,
+      });
+      service.connect();
+      instances[0]!.open();
+      const onError = vi.fn<(error: FormulaEngineError) => void>();
+      service.subscribe(makeSpec(), { onResult: vi.fn(), onError });
+      instances[0]!.close();
+      expect(onError).toHaveBeenCalledExactlyOnceWith(WS_DISCONNECTED);
+      expect(serviceOnError).not.toHaveBeenCalled();
     });
 
     it('skips unsubscribed subscriptions and keeps the held ones live across the reconnect', () => {
@@ -375,16 +394,71 @@ describe('FormulaEngineService', () => {
       expect(onResultA).toHaveBeenCalledExactlyOnceWith(makeResult(7));
     });
 
-    it('also fires when a socket closes before it ever opened', () => {
+    it('stays silent when a socket closes before it ever opened', () => {
+      const { factory, instances } = createFakeWebSocketFactory();
+      const serviceOnError = vi.fn<(error: FormulaEngineError) => void>();
+      const service = new FormulaEngineService({
+        baseUrl: BASE_URL,
+        webSocketFactory: factory,
+        onError: serviceOnError,
+      });
+      const onError = vi.fn<(error: FormulaEngineError) => void>();
+      service.subscribe(makeSpec(), { onResult: vi.fn(), onError });
+      service.subscribe(makeSpec({ expression: 'B' }), { onResult: vi.fn() });
+      service.connect();
+
+      instances[0]!.close();
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(serviceOnError).not.toHaveBeenCalled();
+    });
+
+    it('fires once per outage: failed reconnect attempts add nothing, the next open resets it', () => {
+      const { factory, instances } = createFakeWebSocketFactory();
+      const serviceOnError = vi.fn<(error: FormulaEngineError) => void>();
+      const service = new FormulaEngineService({
+        baseUrl: BASE_URL,
+        webSocketFactory: factory,
+        reconnectDelaysMs: [10],
+        onError: serviceOnError,
+      });
+      const onError = vi.fn<(error: FormulaEngineError) => void>();
+      service.subscribe(makeSpec(), { onResult: vi.fn(), onError });
+      service.subscribe(makeSpec({ expression: 'B' }), { onResult: vi.fn() });
+      service.connect();
+      instances[0]!.open();
+      instances[0]!.close();
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(serviceOnError).toHaveBeenCalledTimes(1);
+
+      // Three reconnect attempts that never open.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        vi.advanceTimersByTime(10);
+        instances[attempt]!.close();
+      }
+      expect(instances).toHaveLength(4);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(serviceOnError).toHaveBeenCalledTimes(1);
+
+      // A socket that opens ends the outage; losing it is a new one.
+      vi.advanceTimersByTime(10);
+      instances[4]!.open();
+      instances[4]!.close();
+      expect(onError).toHaveBeenCalledTimes(2);
+      expect(serviceOnError).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports nothing for a failed handshake after dispose() and connect()', () => {
       const { factory, instances } = createFakeWebSocketFactory();
       const service = new FormulaEngineService({ baseUrl: BASE_URL, webSocketFactory: factory });
       const onError = vi.fn<(error: FormulaEngineError) => void>();
       service.subscribe(makeSpec(), { onResult: vi.fn(), onError });
       service.connect();
-
-      instances[0]!.close();
-
-      expect(onError).toHaveBeenCalledExactlyOnceWith(WS_DISCONNECTED);
+      instances[0]!.open();
+      service.dispose();
+      service.connect();
+      instances[1]!.close();
+      expect(onError).not.toHaveBeenCalled();
     });
 
     it('stays silent with no held subscription and on dispose()', () => {
@@ -602,15 +676,17 @@ describe('FormulaEngineService', () => {
       });
       service.connect();
       service.subscribe(makeSpec(), { onResult: vi.fn() });
+      service.subscribe(makeSpec({ expression: 'B' }), { onResult: vi.fn() });
       instances[0]!.open();
       instances[0]!.message({ type: 'subscribed', id: 'srv-1' });
 
       instances[0]!.close(1008, 'invalid_api_key');
 
       expect(service.status).toBe('disconnected');
-      // The held subscription (no onError of its own) is told its evaluation
-      // is gone first, then the service reports the terminal close; neither is
-      // retryable because the service no longer reconnects on its own.
+      // The held subscriptions (no onError of their own) are told once that
+      // their evaluations are gone, then the service reports the terminal
+      // close; neither is retryable because the service no longer reconnects
+      // on its own.
       expect(onError.mock.calls).toEqual([
         [{ code: 'ws_disconnected', message: 'Formula connection lost.', retryable: false }],
         [
@@ -627,7 +703,10 @@ describe('FormulaEngineService', () => {
 
       service.connect();
       instances[1]!.open();
-      expect(instances[1]!.parsedSent()).toEqual([{ type: 'subscribe', spec: makeSpec() }]);
+      expect(instances[1]!.parsedSent()).toEqual([
+        { type: 'subscribe', spec: makeSpec() },
+        { type: 'subscribe', spec: makeSpec({ expression: 'B' }) },
+      ]);
     });
 
     it('keeps reconnecting on 1008 when terminalCloseCodes is empty', () => {
