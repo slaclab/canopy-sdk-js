@@ -503,7 +503,7 @@ import wiring from '@slaclab/canopy-shell/wiring.json' with { type: 'json' };
 
 `host-contract.css`, `tokens.json` and `wiring.json` are generated from the
 pinned `@carbon/styles` by `pnpm run gen-tokens`; `pnpm test` fails when they
-are stale.
+are stale or missing.
 
 ### Helpers
 

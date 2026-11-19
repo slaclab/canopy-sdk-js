@@ -328,10 +328,15 @@ describe('gen-tokens --check as a script', () => {
     expect(strayOutputs.map((path) => existsSync(path))).toEqual(strayBefore);
   });
 
-  it('passes on a complete wiring and writes no artefact', () => {
+  it('fails on a complete wiring when neither artefact exists, and writes none', () => {
     const dir = tempPackage(wiring());
 
-    expect(checkIn(dir)).toEqual({ status: 0, stderr: '' });
+    const result = checkIn(dir);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `gen-tokens: ${join(dir, 'tokens.json')} and ${join(dir, 'host-contract.css')} are missing`
+    );
     expect(readdirSync(dir).sort()).toEqual([
       'node_modules',
       'package.json',

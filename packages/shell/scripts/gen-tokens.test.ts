@@ -691,6 +691,23 @@ describe('the generator as a script', () => {
     }
   );
 
+  it('fails --check when both artefacts are missing, and writes neither', () => {
+    const dir = tempPackage(stylesheet());
+
+    const result = run(dir, ['--check']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `gen-tokens: ${join(dir, 'tokens.json')} and ${join(dir, 'host-contract.css')} are missing; run gen-tokens`
+    );
+    expect(readdirSync(dir).sort()).toEqual([
+      'node_modules',
+      'package.json',
+      'scripts',
+      'wiring.json',
+    ]);
+  });
+
   it('fails --check on a sheet that lost its markers', () => {
     const dir = tempPackage(stylesheet());
     const sheet = join(dir, 'host-contract.css');

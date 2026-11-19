@@ -14,7 +14,8 @@
 // `@generated` marker comments; everything outside the markers is hand-written and left alone.
 //
 // `--check` writes nothing: it fails, naming the token, when the wiring map and the stylesheet
-// disagree, and it fails when `tokens.json` or the generated blocks differ from a fresh render.
+// disagree, and it fails when `tokens.json` or `host-contract.css` is missing or when either
+// differs from a fresh render.
 //
 // Run it through the package script only (`pnpm run gen-tokens`). Inputs and outputs are resolved
 // from this file's own location, never from the working directory.
@@ -432,17 +433,18 @@ function staleAt(committed, fresh) {
 }
 
 /**
- * Fail when a committed artefact is not what the generator would write now. A package that has
- * generated neither artefact yet has nothing to be stale; one without the other is incomplete.
+ * Fail when a committed artefact is missing or is not what the generator would write now. Both
+ * artefacts are always expected: a missing one is never fresh.
  */
 function checkFresh(tokens, blocks) {
   const committed = {
     tokens: existsSync(PATHS.tokens) ? readFileSync(PATHS.tokens, 'utf8') : null,
     sheet: existsSync(PATHS.sheet) ? readFileSync(PATHS.sheet, 'utf8') : null,
   };
-  if (committed.tokens === null && committed.sheet === null) return false;
-  for (const artefact of ['tokens', 'sheet']) {
-    if (committed[artefact] === null) fail(`${PATHS[artefact]} is missing; run gen-tokens`);
+  const missing = ['tokens', 'sheet'].filter((artefact) => committed[artefact] === null);
+  if (missing.length > 0) {
+    const paths = missing.map((artefact) => PATHS[artefact]).join(' and ');
+    fail(`${paths} ${missing.length === 1 ? 'is' : 'are'} missing; run gen-tokens`);
   }
   const fresh = serialize(tokens);
   if (committed.tokens !== fresh) {
@@ -455,7 +457,6 @@ function checkFresh(tokens, blocks) {
       `the generated blocks of ${PATHS.sheet} are stale (${staleAt(generated, blocks)}); run gen-tokens`
     );
   }
-  return true;
 }
 
 /** The exact bytes of a generated JSON file. */
@@ -523,9 +524,8 @@ function main(args) {
   const blocks = renderBlocks(tokens, wiring);
   if (args.includes('--check')) {
     console.log(`gen-tokens: ${PATHS.wiring} maps every enumerated token`);
-    if (checkFresh(tokens, blocks)) {
-      console.log(`gen-tokens: ${PATHS.tokens} and ${PATHS.sheet} are fresh`);
-    }
+    checkFresh(tokens, blocks);
+    console.log(`gen-tokens: ${PATHS.tokens} and ${PATHS.sheet} are fresh`);
     return;
   }
   const sheet = spliceBlocks(
