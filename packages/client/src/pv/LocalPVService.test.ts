@@ -69,6 +69,20 @@ describe('parseLocUrl', () => {
       type: 'str',
     });
     expect(parseLocUrl('loc://x<VInt>?init=9')).toEqual({ name: 'x', vtype: 'VInt', init: '9' });
+    // The group ends at the `)` matching its `(`, not at the last `)` of the URL.
+    expect(parseLocUrl('loc://x(2)?type=str&init=f(a)')).toEqual({
+      name: 'x',
+      init: '2',
+      type: 'str',
+    });
+  });
+
+  it('closes the initialiser at its matching parenthesis, outside quoted text', () => {
+    expect(parseLocUrl('loc://s(f(x))')).toEqual({ name: 's', init: 'f(x)' });
+    expect(parseLocUrl('loc://s("a)b")')).toEqual({ name: 's', init: '"a)b"' });
+    expect(parseLocUrl('loc://s("a\\")b")')).toEqual({ name: 's', init: '"a\\")b"' });
+    // A `)` that closes the group early leaves no group at the end: the text is a name.
+    expect(parseLocUrl('loc://s(a)b)')).toEqual({ name: 's(a)b)' });
   });
 
   it('takes the whole text before the query as the name when no group closes there', () => {

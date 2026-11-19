@@ -19,7 +19,9 @@ import { serviceOutcome } from '../hare/writeOutcome.js';
 //
 // `<VType>` and `(init)` are recognised only when the group closes at the end
 // of the URL or right before `?`; otherwise the whole text before `?` is the
-// name. A `(` that follows `$` opens a macro, never an initialiser, and a
+// name. The `(init)` group closes at the `)` that matches its `(`, counting
+// nested parentheses and skipping double-quoted text, so in
+// `loc://x(2)?type=str&init=f(a)` the group is `(2)`. A `(` that follows `$` opens a macro, never an initialiser, and a
 // macro's `)` never closes one: `loc://a(1)$(M)` ends in a macro, so it is a
 // name. An unresolved macro (`$(NAME)` or `${NAME}`) is never part of a
 // `(init)` group: `loc://a($(M))` declares `a` with no initialiser, the
@@ -62,6 +64,31 @@ function decodeQueryValue(raw: string): string {
   }
 }
 
+/**
+ * Index of the `)` that closes the `(` at the start of `text`, counting nested
+ * parentheses and skipping double-quoted text (with `\` escapes), or -1 when the
+ * group never closes.
+ */
+function groupEnd(text: string): number {
+  let depth = 0;
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '\\') i += 1;
+      else if (ch === '"') quoted = false;
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === '(') {
+      depth += 1;
+    } else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
 /** `name[<VType>][(init)]`, or null when `text` does not end in such a group. */
 function parseDeclaration(text: string): ParsedLocUrl | null {
   let at = 0;
@@ -80,7 +107,7 @@ function parseDeclaration(text: string): ParsedLocUrl | null {
     rest = rest.slice(close + 1);
     if (rest === '') return out;
   }
-  if (rest[0] !== '(' || !rest.endsWith(')')) return null;
+  if (rest[0] !== '(' || groupEnd(rest) !== rest.length - 1) return null;
   const init = rest.slice(1, -1);
   if (!holdsMacro(init)) out.init = init;
   return out;
