@@ -9,7 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeWebSocketFactory } from '../testing/fakeWebSocket.js';
 import { HarePVService } from './HarePVService.js';
 import type { FetchLike } from './HarePVService.js';
-import type { HareHeartbeatFrame, HareHeartbeatState, WriteOutcome } from './types.js';
+import type {
+  HareHeartbeatFrame,
+  HareHeartbeatState,
+  WriteOutcome,
+  WriteOutcomeRowId,
+} from './types.js';
 import {
   WRITE_OUTCOME_COALESCED_TOAST,
   WRITE_OUTCOME_CODE_ROWS,
@@ -133,17 +138,35 @@ function envelope(code: string, detail: string): string {
 }
 
 describe('write-outcome table', () => {
-  it('equals the vector file row for row (outcome, status, code, default detail)', () => {
+  it('equals the vector file row for row (outcome, status, code, default detail, dynamic)', () => {
     expect(Object.keys(WRITE_OUTCOME_ROWS).sort()).toEqual(Object.keys(vectors.rows).sort());
     for (const [id, row] of Object.entries(vectors.rows)) {
-      expect(WRITE_OUTCOME_ROWS[id], id).toEqual({
+      expect(WRITE_OUTCOME_ROWS[id as WriteOutcomeRowId], id).toEqual({
         outcome: row.outcome,
         status: row.status,
         code: row.code,
         detail: row.default,
+        dynamic: row.dynamic,
       });
     }
     expect(WRITE_OUTCOME_COALESCED_TOAST).toBe(vectors.rows['coalesced']!.toast);
+  });
+
+  it('is frozen, rows included, and read-only in its type', () => {
+    expect(Object.isFrozen(WRITE_OUTCOME_ROWS)).toBe(true);
+    for (const row of Object.values(WRITE_OUTCOME_ROWS)) expect(Object.isFrozen(row)).toBe(true);
+    expect(Object.isFrozen(WRITE_OUTCOME_CODE_ROWS)).toBe(true);
+    expect(() => {
+      // @ts-expect-error -- the rows are read-only
+      WRITE_OUTCOME_ROWS.confirmed.detail = 'changed';
+    }).toThrow(TypeError);
+    expect(() => {
+      // @ts-expect-error -- the table is read-only
+      WRITE_OUTCOME_ROWS['client-unknown'] = WRITE_OUTCOME_ROWS.confirmed;
+    }).toThrow(TypeError);
+    expect(WRITE_OUTCOME_ROWS.confirmed.detail).toBe('written');
+    // @ts-expect-error -- only the vector file's row ids are keys
+    expect(WRITE_OUTCOME_ROWS['no-such-row']).toBeUndefined();
   });
 
   it('caps an envelope detail at the vector file length', () => {
@@ -175,6 +198,7 @@ describe('write-outcome table', () => {
   it('answers target-changed with its own text', () => {
     expect(clientOutcome('target-changed')).toEqual({
       outcome: 'target_changed',
+      row: 'target-changed',
       code: null,
       status: null,
       detail: vectors.rows['target-changed']!.default,
@@ -187,6 +211,7 @@ describe('write-outcome table', () => {
     expect(row.dynamic).toBe(true);
     expect(clientOutcome('write-state-changed', 'Simulator')).toEqual({
       outcome: 'target_changed',
+      row: 'write-state-changed',
       code: null,
       status: null,
       detail: row.detail!.replace('<label>', 'Simulator'),
@@ -220,20 +245,80 @@ describe('write-outcome table', () => {
     }
   });
 
-  it('takes each fixed server row back to its outcome and detail from its own envelope', () => {
+  it('takes each fixed server row back to its outcome, row and detail from its own envelope', () => {
     for (const [id, row] of Object.entries(vectors.rows)) {
       if (row.status === null || row.outcome === null) continue;
       const ok = row.status >= 200 && row.status < 300;
       const text = ok ? WRITE_RESULT : row.code === null ? '' : envelope(row.code, row.default!);
       const got = outcomeFromResponse(ok, row.status, text);
+      // A dynamic row's text is the server's own, so only its code names a
+      // row: connector-limits reads as connector-refused.
+      const expectedRow = row.dynamic && row.code !== null ? WRITE_OUTCOME_CODE_ROWS[row.code] : id;
       expect(got, id).toEqual({
         outcome: row.outcome,
+        row: expectedRow,
         code: row.code,
         status: row.status,
         detail: row.default,
         coalesced: false,
       });
     }
+  });
+
+  it('tells the 403s apart by row: the connector, the read-only deployment and the panel server', () => {
+    const refused = (detail: string, status = 403) =>
+      outcomeFromResponse(false, status, envelope('pv_write_refused', detail));
+    expect(refused('channel SIM:PV1 is read-only')).toMatchObject({
+      outcome: 'refused',
+      row: 'connector-refused',
+      status: 403,
+      code: 'pv_write_refused',
+    });
+    expect(refused(WRITE_OUTCOME_ROWS['connector-refused-read-only'].detail!).row).toBe(
+      'connector-refused-read-only'
+    );
+    expect(refused(WRITE_OUTCOME_ROWS['front-refused-403'].detail!).row).toBe('front-refused-403');
+    // The server's text after trimming, at the row's own status.
+    expect(refused(`  ${WRITE_OUTCOME_ROWS['front-refused-403'].detail!}\n`).row).toBe(
+      'front-refused-403'
+    );
+    expect(refused(WRITE_OUTCOME_ROWS['front-refused-404'].detail!, 404).row).toBe(
+      'front-refused-404'
+    );
+    expect(refused(WRITE_OUTCOME_ROWS['front-refused-413'].detail!, 413).row).toBe(
+      'front-refused-413'
+    );
+    // The panel server's text at a status no fixed row has is the code's row.
+    expect(refused(WRITE_OUTCOME_ROWS['front-refused-403'].detail!, 400).row).toBe(
+      'connector-refused'
+    );
+    // No detail: the code's row with its default text.
+    expect(outcomeFromResponse(false, 403, '{"code":"pv_write_refused"}')).toMatchObject({
+      row: 'connector-refused',
+      detail: WRITE_OUTCOME_ROWS['connector-refused'].detail,
+    });
+    // A fixed row's text with another row's code is not that row.
+    expect(
+      outcomeFromResponse(
+        false,
+        409,
+        envelope('pv_target_changed', WRITE_OUTCOME_ROWS['connector-switch-in-progress'].detail!)
+      ).row
+    ).toBe('connector-target-changed');
+  });
+
+  it('names the client row it answers with', () => {
+    expect(clientOutcome('client-unknown').row).toBe('client-unknown');
+    expect(clientOutcome('target-changed').row).toBe('target-changed');
+    expect(clientOutcome('write-state-changed', 'Simulator').row).toBe('write-state-changed');
+    // A relay timeout (504) carries the connector's unknown code: its row, not the 502 one's status.
+    expect(
+      outcomeFromResponse(
+        false,
+        504,
+        envelope('pv_write_unknown', WRITE_OUTCOME_ROWS['connector-unknown'].detail!)
+      )
+    ).toMatchObject({ row: 'connector-unknown', status: 504 });
   });
 
   it('uses the server detail verbatim for server rows, the default when it is empty', () => {
@@ -279,6 +364,7 @@ describe('write-outcome table', () => {
   it('never toasts a raw body: 405, FRONT 401, unrecognised codes and non-envelopes take the table text', () => {
     expect(outcomeFromResponse(false, 405, '{"detail":"Method Not Allowed"}')).toEqual({
       outcome: 'refused',
+      row: 'writes-not-enabled',
       code: null,
       status: 405,
       detail: 'writes are not enabled on this server',
@@ -293,6 +379,7 @@ describe('write-outcome table', () => {
     });
     expect(outcomeFromResponse(false, 500, envelope('pv_write_failed', 'Traceback ...'))).toEqual({
       outcome: 'unknown',
+      row: 'client-unknown',
       code: 'pv_write_failed',
       status: 500,
       detail: UNKNOWN_TEXT,
@@ -312,6 +399,7 @@ describe('write-outcome table', () => {
   it('reads a 2xx as written only when its body is a JSON object with a string pv', () => {
     const unknown = (status: number) => ({
       outcome: 'unknown',
+      row: 'client-unknown',
       code: null,
       status,
       detail: UNKNOWN_TEXT,
@@ -319,6 +407,7 @@ describe('write-outcome table', () => {
     });
     expect(outcomeFromResponse(true, 200, '{"pv":"SR:X","value":1}')).toEqual({
       outcome: 'confirmed',
+      row: 'confirmed',
       code: null,
       status: 200,
       detail: 'written',
@@ -340,6 +429,7 @@ describe('write-outcome table', () => {
   it('reads any redirect as unknown, whatever its body', () => {
     expect(outcomeFromResponse(false, 0, '', 'opaqueredirect')).toEqual({
       outcome: 'unknown',
+      row: 'client-unknown',
       code: null,
       status: null,
       detail: UNKNOWN_TEXT,
@@ -350,6 +440,7 @@ describe('write-outcome table', () => {
     for (const status of [301, 302, 303, 307, 308]) {
       expect(outcomeFromResponse(false, status, WRITE_RESULT), String(status)).toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status,
         detail: UNKNOWN_TEXT,
@@ -452,6 +543,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const service = new HarePVService({ url: BASE_URL, fetchFn });
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'target_changed',
+        row: 'target-changed',
         code: null,
         status: null,
         detail: TARGET_CHANGED_TEXT,
@@ -494,6 +586,7 @@ describe('HarePVService.heartbeat / submit', () => {
 
       expect(got).toEqual({
         outcome: 'confirmed',
+        row: 'confirmed',
         code: null,
         status: 200,
         detail: 'written',
@@ -555,6 +648,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'refused',
+        row: 'connector-refused',
         code: 'pv_write_refused',
         status: 403,
         detail: 'channel SR:X is read-only',
@@ -569,6 +663,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status: null,
         detail: UNKNOWN_TEXT,
@@ -615,6 +710,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status: 200,
         detail: UNKNOWN_TEXT,
@@ -628,6 +724,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status: null,
         detail: UNKNOWN_TEXT,
@@ -640,6 +737,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('X', 1)).resolves.toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status: 302,
         detail: UNKNOWN_TEXT,
@@ -666,6 +764,7 @@ describe('HarePVService.heartbeat / submit', () => {
       const { service } = connected(fetchFn);
       await expect(service.submit('SR:X', 1)).resolves.toEqual({
         outcome: 'confirmed',
+        row: 'confirmed',
         code: null,
         status: 200,
         detail: 'written',
@@ -708,6 +807,7 @@ describe('HarePVService.heartbeat / submit', () => {
       await tick();
       expect(second.value).toEqual({
         outcome: 'confirmed',
+        row: 'confirmed',
         code: null,
         status: 200,
         detail: 'written',
@@ -737,6 +837,7 @@ describe('HarePVService.heartbeat / submit', () => {
       await tick();
       const winner: WriteOutcome = {
         outcome: 'mismatch',
+        row: 'mismatch',
         code: 'pv_write_mismatch',
         status: 409,
         detail: 'written; the channel holds 3.9',
@@ -789,6 +890,7 @@ describe('HarePVService.heartbeat / submit', () => {
       await tick();
       expect(third.value).toEqual({
         outcome: 'target_changed',
+        row: 'target-changed',
         code: null,
         status: null,
         detail: TARGET_CHANGED_TEXT,
@@ -874,6 +976,7 @@ describe('HarePVService.heartbeat / submit', () => {
       await vi.advanceTimersByTimeAsync(1);
       expect(first.value).toEqual({
         outcome: 'unknown',
+        row: 'client-unknown',
         code: null,
         status: null,
         detail: UNKNOWN_TEXT,
