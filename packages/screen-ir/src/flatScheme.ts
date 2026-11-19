@@ -1,4 +1,4 @@
-import { isRecord } from './guards.js';
+import { codePointLength, isRecord } from './guards.js';
 
 /**
  * Metadata that travels with a flattened color scheme. The same shape is produced
@@ -69,8 +69,13 @@ function isCanonicalHex(x: unknown): x is string {
   return typeof x === 'string' && CANONICAL_HEX.test(x) && !(x.length === 9 && x.endsWith('ff'));
 }
 
+// An index loop, not `every`, which skips the holes of a sparse array.
 function isStringArray(x: unknown): x is string[] {
-  return Array.isArray(x) && x.every((v) => typeof v === 'string');
+  if (!Array.isArray(x)) return false;
+  for (let i = 0; i < x.length; i++) {
+    if (typeof x[i] !== 'string') return false;
+  }
+  return true;
 }
 
 function parseMeta(x: unknown): SchemeMeta | string {
@@ -103,8 +108,9 @@ function checkColors(name: 'light' | 'dark', colors: readonly string[]): string 
 /**
  * Validate an untrusted value as a {@link FlatScheme}. Returns a fresh scheme
  * holding only the known fields, or `{error}` naming the first failed check:
- * `roles`, `light` and `dark` must be string arrays of equal length; role names
- * must be unique, 1–64 characters; colors must be canonical (lowercase, 6 or 8
+ * `roles`, `light` and `dark` must be string arrays of equal length, with no
+ * holes; role names must be unique, 1–64 characters (code points, as the color
+ * scheme schema counts them); colors must be canonical (lowercase, 6 or 8
  * hex digits, no `ff` alpha); and `meta` must be a {@link SchemeMeta} (with
  * nullable `id` and `sha256`).
  *
@@ -126,7 +132,8 @@ export function parseFlatScheme(x: unknown): FlatScheme | { error: string } {
   }
   const seen = new Set<string>();
   for (const [i, role] of roles.entries()) {
-    if (role.length < 1 || role.length > ROLE_MAX_LENGTH) {
+    const length = codePointLength(role);
+    if (length < 1 || length > ROLE_MAX_LENGTH) {
       return { error: `roles[${i}] must be 1-${ROLE_MAX_LENGTH} characters` };
     }
     if (seen.has(role)) return { error: `duplicate role ${JSON.stringify(role)}` };

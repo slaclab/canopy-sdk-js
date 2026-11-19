@@ -25,6 +25,16 @@ function withMeta(field: string, value: unknown): Record<string, unknown> {
   return { ...base, meta: { ...meta, [field]: value } };
 }
 
+/** `values` with a hole at `index` (eslint's no-sparse-arrays forbids `[a, , c]`). */
+function withHole(values: readonly string[], index: number): string[] {
+  const holey = [...values];
+  delete holey[index];
+  return holey;
+}
+
+/** A role name of `n` code points, each outside the BMP (two UTF-16 code units). */
+const nonBmpRole = (n: number) => '\u{1F600}'.repeat(n);
+
 describe('parseFlatScheme', () => {
   it('returns the scheme for a valid value', () => {
     const r = parseFlatScheme(base);
@@ -43,6 +53,7 @@ describe('parseFlatScheme', () => {
     ['null id and sha256', { ...base, meta: { ...meta, id: null, sha256: null } }],
     ['errors with entries', withMeta('errors', [{ path: '/roles/Text', message: 'bad' }])],
     ['empty scheme', { roles: [], light: [], dark: [], meta }],
+    ['role of 64 non-BMP characters', withField('roles', [nonBmpRole(64), 'Transparent', 'OK'])],
   ])('accepts %s', (_label, v) => {
     expect('error' in parseFlatScheme(v)).toBe(false);
   });
@@ -56,6 +67,11 @@ describe('parseFlatScheme', () => {
     ['empty role name', withField('roles', ['', 'Transparent', 'OK'])],
     ['65-character role', withField('roles', ['r'.repeat(65), 'Transparent', 'OK'])],
     ['non-string role', withField('roles', [1, 'Transparent', 'OK'])],
+    ['role of 65 non-BMP characters', withField('roles', [nonBmpRole(65), 'Transparent', 'OK'])],
+    ['sparse roles', withField('roles', withHole(base.roles, 1))],
+    ['roles of only holes', withField('roles', new Array<string>(3))],
+    ['sparse light', withField('light', withHole(base.light, 0))],
+    ['sparse dark', withField('dark', withHole(base.dark, 2))],
     ['3-digit #FFF', withField('light', ['#FFF', '#ffffff00', '#24a148'])],
     ['3-digit lowercase #fff', withField('light', ['#fff', '#ffffff00', '#24a148'])],
     ['uppercase 6-digit', withField('dark', ['#F4F4F4', '#16161600', '#42be65'])],
@@ -75,6 +91,12 @@ describe('parseFlatScheme', () => {
     const r = parseFlatScheme(v);
     expect(r).toHaveProperty('error');
     expect(typeof (r as { error: string }).error).toBe('string');
+  });
+
+  it('reports a hole in roles as an error instead of throwing', () => {
+    expect(parseFlatScheme(withField('roles', withHole(base.roles, 1)))).toEqual({
+      error: 'roles must be an array of strings',
+    });
   });
 
   it('names the duplicate role in the error', () => {
