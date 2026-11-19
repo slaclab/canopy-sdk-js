@@ -51,7 +51,7 @@
   },
   "peerDependencies": {
     "@carbon/icons-react": "^11.50.0",
-    "@carbon/react": "^1.90.0",
+    "@carbon/react": "^1.107.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

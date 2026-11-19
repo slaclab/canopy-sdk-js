@@ -13,8 +13,17 @@ The standard chrome for Canopy web apps, in the SLAC look:
 
 ## Install
 
-Peer dependencies: `react`, `react-dom` (^19), `@carbon/react` (^1.90),
+Peer dependencies: `react`, `react-dom` (^19), `@carbon/react` (^1.107),
 `@carbon/icons-react` (^11.50).
+
+The `@carbon/react` floor comes from the host contract (0.3.0 accepted ^1.90).
+The contract's fallback values are Carbon's literals from `@carbon/styles`
+1.110.0, and they are identical in `@carbon/styles` 1.106.0 through 1.119.0,
+the versions checked. `@carbon/react` 1.107.0 is the first release whose own
+`@carbon/styles` dependency starts at 1.106. What counts is the
+`@carbon/styles` whose CSS the app loads (the first import below), so keep
+that in the checked range too. Newer releases are allowed but not yet checked:
+`@carbon/react` 1.121 already depends on `@carbon/styles` ^1.120.
 
 Load Carbon's CSS first, then the shell's CSS:
 
