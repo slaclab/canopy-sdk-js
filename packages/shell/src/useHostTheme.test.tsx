@@ -1,8 +1,10 @@
 import { StrictMode } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { Theme } from '@carbon/react';
 import { render, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useColorMode } from './themeStore.js';
 import type { ColorMode } from './themeStore.js';
 import { HOST_THEME_ID, modeFromThemeId, useHostTheme } from './useHostTheme.js';
 
@@ -230,5 +232,37 @@ describe('useHostTheme contract marker', () => {
     render(<Root raw="retro-dark" mode="dark" contract="2" />);
     expect(read).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+// The example of the README, verbatim: the anchor is the element Carbon's Theme renders.
+function AppRoot({ hostThemeId }: { hostThemeId: string | null }) {
+  const { colorMode, carbonTheme } = useColorMode();
+  const { anchorRef, anchorProps } = useHostTheme<HTMLDivElement>(hostThemeId, colorMode);
+
+  return (
+    <Theme theme={carbonTheme} ref={anchorRef} {...anchorProps}>
+      {/* ...the app... */}
+    </Theme>
+  );
+}
+
+describe('the README example', () => {
+  it('puts the anchor on the Carbon zone element, ref and attributes alike', () => {
+    markHosted();
+    const read = vi.spyOn(window, 'getComputedStyle');
+    spyWarn();
+
+    const { container } = render(<AppRoot hostThemeId="retro-dark" />);
+
+    const anchors = container.querySelectorAll('[data-canopy-host-root]');
+    expect(anchors).toHaveLength(1);
+    const anchor = anchors[0]!;
+    expect(anchor).toBe(container.firstElementChild);
+    expect(anchor.matches('.cds--g10, .cds--g100')).toBe(true);
+    expect(anchor.getAttribute('data-floating-menu-container')).toBe('');
+    expect(anchor.getAttribute('data-theme')).toBe('retro-dark');
+    // The hook read the contract version from the element its ref holds.
+    expect(read).toHaveBeenCalledWith(anchor);
   });
 });
