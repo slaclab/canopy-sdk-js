@@ -1,6 +1,6 @@
 {
   "id": "regular-button",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Action button with no PV binding. Use with rules or navigation actions.",
   "supportsPv": false,
   "supportsRules": true,
@@ -44,7 +44,7 @@
           },
           "additionalProperties": true
         },
-        "description": "Converter-carried action list (e.g. shell_command, close_display); the Screen Builder lifts these into widget actions."
+        "description": "The reserved action list that runs on click (open_display, write_pv, execute, open_webpage, open_file, close_display); see Props every widget accepts in the canopy-spec README."
       },
       "fontSize": {
         "type": "number",

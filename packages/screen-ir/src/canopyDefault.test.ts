@@ -1,0 +1,119 @@
+import { createHash } from 'node:crypto';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+import { describe, expect, it } from 'vitest';
+import pkg from '../package.json' with { type: 'json' };
+import { CANOPY_DEFAULT_SCHEME_ID, canopyDefaultFlat, parseFlatScheme } from './index.js';
+
+/**
+ * sha256 of the canonical canopy-default.json the flat file was generated from.
+ * That file isn't in this repo, so the hash can't be recomputed here; the pin
+ * only makes regenerating the flat file a deliberate change to this test too.
+ */
+const PACKAGED_SHA256 = '0a8f403e70f0b9a5dc2eb9679da24f72f54209e19a8a9043d3de636e49ce810d';
+
+const BUILDER_DEFAULTS = ['Text', 'Read_Background', 'Background', 'On', 'Off'];
+const D5_DEFAULTS = ['Text', 'Read_Background', 'Display_Background'];
+const ALARM_ROLES = ['OK', 'MINOR', 'MAJOR', 'INVALID', 'DISCONNECTED'];
+const CONTRAST_PAIRS = [
+  'ActiveText',
+  'Write_Background',
+  'Header_ForeGround',
+  'Header_Background',
+  'Button_Background',
+];
+/** Grid splits by use: line colour (`Grid`) and the filled background (`Grid_Fill`). */
+const GRID_ROLES = ['Grid', 'Grid_Fill'];
+
+/**
+ * The files `tsc -p tsconfig.build.json` writes, relative to the package and
+ * with `/` separators. Collected from an in-memory emit, so nothing is written
+ * and a stale `dist/` can't hide a change.
+ */
+function buildOutputs(): string[] {
+  const packageDir = fileURLToPath(new URL('..', import.meta.url));
+  const config = ts.getParsedCommandLineOfConfigFile(
+    join(packageDir, 'tsconfig.build.json'),
+    undefined,
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: (d) => {
+        throw new Error(ts.flattenDiagnosticMessageText(d.messageText, '\n'));
+      },
+    }
+  );
+  if (config === undefined) throw new Error('cannot read tsconfig.build.json');
+  const program = ts.createProgram({ rootNames: config.fileNames, options: config.options });
+  const outputs: string[] = [];
+  program.emit(undefined, (fileName) => {
+    outputs.push(relative(packageDir, fileName).split(sep).join('/'));
+  });
+  return outputs;
+}
+
+/** `value` and every object and array inside it. */
+function containers(value: unknown): object[] {
+  if (typeof value !== 'object' || value === null) return [];
+  return [value, ...Object.values(value).flatMap(containers)];
+}
+
+describe('canopyDefaultFlat', () => {
+  it.each([
+    ['Builder default table', BUILDER_DEFAULTS],
+    ['D5 defaults', D5_DEFAULTS],
+    ['alarm roles', ALARM_ROLES],
+    ['contrast pairs', CONTRAST_PAIRS],
+    ['grid roles', GRID_ROLES],
+  ])('contains every role named by the %s', (_label, roles) => {
+    for (const role of roles) expect(canopyDefaultFlat.roles).toContain(role);
+  });
+
+  it('carries the no-file meta of the packaged default', () => {
+    expect(canopyDefaultFlat.meta.id).toBe(CANOPY_DEFAULT_SCHEME_ID);
+    expect(canopyDefaultFlat.meta.served).toBe(CANOPY_DEFAULT_SCHEME_ID);
+    expect(canopyDefaultFlat.meta.sha256).toBe(PACKAGED_SHA256);
+    expect(canopyDefaultFlat.meta.errors).toEqual([]);
+  });
+
+  it('carries the flatHash of its own roles and colors', () => {
+    // flatHash is the sha256 of {dark, light, roles} as compact JSON with sorted
+    // keys. JSON.stringify writes those bytes only while every string is ASCII
+    // (a sorted-key encoder may escape other characters), so check that first.
+    const { dark, light, roles } = canopyDefaultFlat;
+    const table = JSON.stringify({ dark, light, roles });
+    expect(table).toMatch(/^[\x20-\x7e]*$/);
+    const recomputed = createHash('sha256').update(table).digest('hex');
+    expect(canopyDefaultFlat.meta.flatHash).toBe(recomputed);
+  });
+
+  it('is a valid flat scheme with parallel light and dark arrays', () => {
+    const parsed = parseFlatScheme(canopyDefaultFlat);
+    expect(parsed).not.toHaveProperty('error');
+    expect(parsed).toEqual(canopyDefaultFlat);
+    expect(canopyDefaultFlat.light).toHaveLength(canopyDefaultFlat.roles.length);
+    expect(canopyDefaultFlat.dark).toHaveLength(canopyDefaultFlat.roles.length);
+  });
+
+  it('is deep-frozen, arrays included', () => {
+    const all = containers(canopyDefaultFlat);
+    expect(all.some(Array.isArray)).toBe(true);
+    expect(all.filter((container) => !Object.isFrozen(container))).toEqual([]);
+  });
+
+  it('throws on writes', () => {
+    expect(() => (canopyDefaultFlat.roles as string[]).push('x')).toThrow(TypeError);
+    expect(() => {
+      (canopyDefaultFlat.meta as { served: string }).served = 'changed';
+    }).toThrow(TypeError);
+  });
+
+  it('ships the data file in dist/, where the build emits it next to the code', () => {
+    const outputs = buildOutputs();
+    expect(outputs).toContain('dist/src/canopyDefault.js');
+    expect(outputs).toContain('dist/data/canopy-default.flat.json');
+    expect(pkg.files).toContain('dist');
+    // The source copy in data/ is only the build's input.
+    expect(pkg.files).not.toContain('data');
+  });
+});

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:canopy:screen-ir:1.0:widget-definition",
+  "$id": "urn:canopy:screen-ir:1.1:widget-definition",
   "title": "Canopy Screen IR widget definition",
   "description": "One file per IR widget type under screen-ir/widgets/. Holds only the language-neutral contract: the type id and the props it accepts. Editor metadata (palette, inspector) and converter mappings (qtMapping, qtPropMap) live with their tools, not here.",
   "type": "object",

@@ -20,7 +20,7 @@
         "properties": {
           "rule": {
             "description": "`schema` for a JSON Schema failure, otherwise a semantic rule id from the README.",
-            "enum": ["schema", "macro-default-required", "macro-default-forbidden", "formula-ref-unresolved"]
+            "enum": ["schema", "macro-default-required", "macro-default-forbidden", "formula-ref-unresolved", "color-role-version"]
           },
           "instancePath": {
             "description": "JSON Pointer (RFC 6901) to the failing location in `screen`; \"\" is the document root.",

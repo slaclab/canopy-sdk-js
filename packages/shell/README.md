@@ -13,8 +13,17 @@ The standard chrome for Canopy web apps, in the SLAC look:
 
 ## Install
 
-Peer dependencies: `react`, `react-dom` (^19), `@carbon/react` (^1.90),
+Peer dependencies: `react`, `react-dom` (^19), `@carbon/react` (^1.107),
 `@carbon/icons-react` (^11.50).
+
+The `@carbon/react` floor comes from the host contract (0.3.0 accepted ^1.90).
+The contract's fallback values are Carbon's literals from `@carbon/styles`
+1.110.0, and they are identical in `@carbon/styles` 1.106.0 through 1.119.0,
+the versions checked. `@carbon/react` 1.107.0 is the first release whose own
+`@carbon/styles` dependency starts at 1.106. What counts is the
+`@carbon/styles` whose CSS the app loads (the first import below), so keep
+that in the checked range too. Newer releases are allowed but not yet checked:
+`@carbon/react` 1.121 already depends on `@carbon/styles` ^1.120.
 
 Load Carbon's CSS first, then the shell's CSS:
 
@@ -396,7 +405,8 @@ the link goes nowhere.
 ## Styling
 
 - **Tokens only.** All colors are Carbon `--cds-*` tokens, except
-  `--canopy-brand`.
+  `--canopy-brand` and the host contract's `--canopy-*` variables (see
+  [Host theme contract v1](#host-theme-contract-v1)).
 - **Layout variables.** Set on `.canopy-shell`: `--canopy-header-height`
   (3rem), `--canopy-rail-expanded-width` (16rem), `--canopy-rail-collapsed-width`
   (3rem) and `--canopy-rail-transition` (0.11s ease).
@@ -404,9 +414,193 @@ the link goes nowhere.
   `canopy-rail__*`, `canopy-toasts`, `canopy-confirm`,
   `canopy-error-fallback`.
 
+## Host theme contract v1
+
+An app built on this shell can be embedded in a host page (a dashboard, a web
+terminal) and take the host's fonts, colours, radii and control heights instead
+of Carbon's. The host fills `--canopy-host-*` custom properties on one anchor
+element per document; the app reads only those names and never the host's own.
+The items below are the whole interface. An app gains nothing else from being
+embedded, and a host needs to know nothing else about the app.
+
+### Standalone guarantee
+
+Without a host stylesheet nothing changes: every `--canopy-*` variable computes
+to the Carbon value of its zone, so the app renders with Carbon defaults. The
+same holds when a host stylesheet is named but fails to load, because
+`applyHostSheetFallback` then removes the gate.
+
+A name a host leaves unset is a narrower case. That name falls back to the
+Carbon value of its zone, because every read of a `--canopy-host-*` property
+carries that value as its fallback. The document is still hosted, though, so
+the hosted component rules of `host-contract.css` and the Carbon tokens it
+derives from contract names with `color-mix()` still apply under the gate. A
+hosted app does not render exactly as a standalone one, even with every name
+unset.
+
+### Versioning
+
+A host stylesheet declares the contract version it was written for as
+`--canopy-host-contract: 1` on the anchor. A 1.x release of the contract adds
+names with fallbacks only, so a host written for 1.0 keeps working; renaming or
+removing a name is version 2. `useHostTheme` reads the declared version once
+for each valid theme id the host asks for, and warns in the console when it is
+missing or has a different major; it applies the theme either way. Nothing is
+read while the host has sent no valid id, since a host stylesheet may declare
+the version under its theme ids only.
+
+### The names
+
+Contract v1 has 27 names, each set by the host as `--canopy-host-<name>` and
+read by the app as `--canopy-<name>`:
+
+| Group    | Names                                                              |
+| -------- | ------------------------------------------------------------------ |
+| Fonts    | `font-ui`, `font-mono`                                             |
+| Sizes    | `text-sm`, `text-md`, `text-lg`                                    |
+| Radii    | `radius-sm`, `radius-md`                                           |
+| Controls | `control-h-xs`, `control-h-sm`                                     |
+| Surfaces | `bg-base`, `bg-panel`, `bg-elevated`, `bg-field`                   |
+| Text     | `text-primary`, `text-secondary`, `text-muted`                     |
+| Borders  | `border`, `border-strong`                                          |
+| Accent   | `accent`, `on-accent`, `accent-hover`, `accent-tint`, `hover-tint` |
+| Focus    | `focus`                                                            |
+| Status   | `status-success`, `status-warning`, `status-error`                 |
+
+### What the server that delivers the page does
+
+- **The sidecar setting.** The serving app names the host stylesheets in its
+  server config (for example canopy's `CANOPY_HOST_STYLESHEETS`:
+  whitespace-separated relative `.css` paths); there is no URL parameter for
+  it, so nothing a page visitor controls reaches the list.
+- **`data-canopy-host` on `<html>`.** The gate: every host-driven rule of
+  `host-contract.css` is scoped under `html[data-canopy-host]`, so a document
+  without the attribute is standalone.
+- **`data-canopy-host-sheet` on each `<link>`.** The marker that tells the app
+  which stylesheets are the host's, so it can check that each one loaded.
+
+### What the app puts on its root element
+
+`useHostTheme` returns all three as `anchorProps`. They and `anchorRef` go on
+the one element the host stylesheet styles, and **that element must be the
+Carbon zone element**: the one with the `cds--white`, `cds--g10`, `cds--g90` or
+`cds--g100` class, which is the `<div>` that Carbon's `<Theme>` renders. The
+hosted rules of `host-contract.css` match the zone class and read the
+`--canopy-host-*` properties that the host sets on the anchor, so they see the
+host's values only when both are on the same element. An anchor nested inside
+the zone comes too late: the zone has already resolved every `--canopy-*` name
+to Carbon's value, and the anchor inherits those. In a hosted document
+`useHostTheme` warns once in the console when the anchor has none of the four
+zone classes. See the example under [Helpers](#helpers).
+
+- **`data-canopy-host-root`.** Marks the anchor: the element on which the host
+  sets its `--canopy-host-*` properties and which fills the viewport with the
+  host's base background.
+- **`data-floating-menu-container`.** Carbon's default `OverflowMenu` portals
+  its options into the nearest element with this attribute instead of
+  `<body>`, so they stay inside the anchor and inherit its properties. In
+  `@carbon/react` 1.111 nothing else reads it:
+  - `Menu` portals to its `target` prop, `<body>` by default. Pass
+    `target={anchorRef.current}`, or `menuTarget` on `MenuButton` and on the
+    v12 `OverflowMenu` (the `enable-v12-overflowmenu` feature flag).
+    `ComboButton` has no target prop, so its menu always lands on `<body>`.
+  - Tooltips, popovers, toggletips, dropdown lists and modals are not
+    portalled. They render where the app writes them, inside the anchor.
+  - The shell's `ToastProvider` portals its stack to `<body>`, outside the
+    anchor, so toasts keep Carbon's colours under a host theme.
+- **`data-theme`.** Carries the validated theme id, which is what a host
+  stylesheet selects on to tell its themes apart.
+
+### Files
+
+```ts
+import '@slaclab/canopy-shell/host-contract.css';
+import tokens from '@slaclab/canopy-shell/tokens.json' with { type: 'json' };
+import wiring from '@slaclab/canopy-shell/wiring.json' with { type: 'json' };
+```
+
+- **`host-contract.css`.** The stylesheet an app imports after Carbon's: it
+  defines every `--canopy-*` variable per Carbon zone, points Carbon's own
+  tokens at them, and holds the few component rules that read them.
+- **`tokens.json`.** The contract as data: the version, the four Carbon zones
+  and, for each of the 27 names, its Carbon value per zone and the Carbon
+  tokens it drives.
+- **`wiring.json`.** The map from every Carbon zone, type and layout token to
+  the contract name that drives it, or to the reason it stays Carbon's. It is
+  written and reviewed by hand, and the generator reads it.
+- **`fixtures/host/*`.** Shared test data and setups (a sample host stylesheet
+  and its values, the probe rows, the page setups, the expected `<link>` tail),
+  exported as `./fixtures/*` so every consuming repository tests against the
+  same host. Test-only: the export is for test suites, not runtime API. Its
+  app rows and setups describe the DOM of canopy-screen-runtime and
+  react-trace and are a contract with those repos.
+
+`tokens.json` and the variable blocks of `host-contract.css` (between its two
+`@generated` markers) are generated from the pinned `@carbon/styles` and
+`wiring.json` by `pnpm run gen-tokens`; `pnpm test` fails when they are stale
+or missing. The rest of `host-contract.css`, the component rules, is
+hand-written. `wiring.json` is an input, not an output: nothing regenerates it,
+and the generator fails when it does not map exactly the tokens it enumerates
+from the stylesheet.
+
+### Helpers
+
+All are exported from the package root.
+
+- **`applyHostSheetFallback(doc?)`.** Removes `data-canopy-host` and warns once
+  when a marked host stylesheet is missing or empty, so a 404 leaves the app in
+  its standalone look instead of half-styled; call it after the document's
+  `load`. A document without the marker (standalone, or already fallen back)
+  is left alone, so a second call does not warn again.
+- **`useHostTheme(raw, mode)`.** Validates the theme id the host asked for,
+  falls back to the app's colour mode, and returns the `id`, an `anchorRef`
+  and the `anchorProps` for the root element.
+- **`useChartFont(ref, key?)`.** Returns the font family a chart's wrapper
+  element computes and whether it has loaded, because canvas text does not
+  inherit CSS. It reads again when the element behind `ref` changes, so a
+  wrapper that mounts late is covered, and when `key` changes: pass the host
+  theme id so a live theme switch re-reads the font. Safe to server-render.
+- **`useFontsReady(family, doc?)`.** Turns true once a font family has finished
+  loading in a document, which is when a canvas chart should redraw. `doc`
+  defaults to the global document; without one (server rendering) it stays
+  false.
+- **`modeFromThemeId(id)`.** Maps a theme id to a colour mode: `light` and
+  every `*-light` id are light, everything else is dark.
+- **`HOST_THEME_ID`.** The regular expression a theme id must match
+  (`/^[a-z0-9][a-z0-9-]{0,39}$/`); an id that fails it never reaches the DOM.
+- **`.canopy-btn`.** The class of the shell's ghost button, defined in
+  `host-contract.css`: transparent at rest, an alpha accent border on hover and
+  when pressed.
+
+The anchor is the Carbon zone element itself. Render Carbon's `<Theme>` with
+the app's Carbon theme and put the ref and the attributes on it:
+
+```tsx
+import { Theme } from '@carbon/react';
+import { useColorMode, useHostTheme } from '@slaclab/canopy-shell';
+
+function AppRoot({ hostThemeId }: { hostThemeId: string | null }) {
+  const { colorMode, carbonTheme } = useColorMode();
+  const { anchorRef, anchorProps } = useHostTheme<HTMLDivElement>(hostThemeId, colorMode);
+
+  return (
+    <Theme theme={carbonTheme} ref={anchorRef} {...anchorProps}>
+      {/* ...the app... */}
+    </Theme>
+  );
+}
+```
+
+This takes the place of `ColorModeTheme`, which renders the same `<Theme>` but
+does not declare `ref` among its props. `Theme` passes the attributes and, under
+React 19, the ref on to the `<div>` it renders.
+
 ## Testing apps that use the shell
 
 jsdom lacks `window.matchMedia` and `ResizeObserver`, and Carbon uses both.
-Stub them in your test setup; see this package's `vitest.setup.ts`.
+Stub them in your test setup; see this package's `vitest.setup.ts`. Under
+Node 25+, Node's own Web Storage globals shadow jsdom's `localStorage` and
+`sessionStorage`; this package's `vitest.config.ts` turns them off with
+`execArgv: ['--no-experimental-webstorage']`.
 Components that call `useToast`/`useConfirm` need the providers in the test
 render wrapper.

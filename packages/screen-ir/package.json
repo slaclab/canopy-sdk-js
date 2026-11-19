@@ -20,7 +20,8 @@
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js"
     },
-    "./schema.json": "./spec/screen-ir/screen-ir.schema.json"
+    "./schema.json": "./spec/screen-ir/screen-ir.schema.json",
+    "./color-scheme.schema.json": "./spec/screen-ir/color-scheme.schema.json"
   },
   "files": [
     "dist",
