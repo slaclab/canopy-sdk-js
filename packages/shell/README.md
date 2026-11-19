@@ -512,7 +512,8 @@ All are exported from the package root.
 - **`applyHostSheetFallback(doc?)`.** Removes `data-canopy-host` and warns once
   when a marked host stylesheet is missing or empty, so a 404 leaves the app in
   its standalone look instead of half-styled; call it after the document's
-  `load`.
+  `load`. A document without the marker (standalone, or already fallen back)
+  is left alone, so a second call does not warn again.
 - **`useHostTheme(raw, mode)`.** Validates the theme id the host asked for,
   falls back to the app's colour mode, and returns the `id`, an `anchorRef`
   and the `anchorProps` for the root element.

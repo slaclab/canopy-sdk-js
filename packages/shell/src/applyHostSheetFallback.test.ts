@@ -130,6 +130,43 @@ describe('applyHostSheetFallback', () => {
     expect(message).not.toContain('https://host.example/ok.css');
   });
 
+  it('warns once when called again after the fallback', () => {
+    const warn = spyWarn();
+    const doc = hostedDocument();
+    addHostLink(doc, 'https://host.example/dead.css');
+
+    applyHostSheetFallback(doc);
+    applyHostSheetFallback(doc);
+
+    expect(isHosted(doc)).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns again for a second fallback once the marker is set again', () => {
+    const warn = spyWarn();
+    const doc = hostedDocument();
+    addHostLink(doc, 'https://host.example/dead.css');
+
+    applyHostSheetFallback(doc);
+    doc.documentElement.dataset.canopyHost = '';
+    applyHostSheetFallback(doc);
+
+    expect(isHosted(doc)).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves a standalone document alone, dead marked link or not', () => {
+    const warn = spyWarn();
+    const doc = document.implementation.createHTMLDocument('standalone');
+    const link = addHostLink(doc, 'https://host.example/dead.css');
+
+    applyHostSheetFallback(doc);
+
+    expect(isHosted(doc)).toBe(false);
+    expect(link.isConnected).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('defaults to the global document', () => {
     const warn = spyWarn();
     document.documentElement.dataset.canopyHost = '';

@@ -19,8 +19,11 @@ function isDead(link: HTMLLinkElement): boolean {
  * the document with `data-canopy-host` on `<html>`, which switches the app
  * from its own look to the host's tokens. If any marked sheet is missing or
  * empty those tokens are undefined, so the marker is removed and the app
- * falls back to its standalone look. Without a marked link the document is
- * left untouched.
+ * falls back to its standalone look, with one console warning naming the
+ * dead sheets. Without a marked link the document is left untouched, and so
+ * is a document without the marker: a standalone one, or one that already
+ * fell back. Calling it again therefore warns again only after the marker was
+ * set again.
  *
  * Call it once the document's stylesheets have settled (after `load`).
  *
@@ -28,6 +31,7 @@ function isDead(link: HTMLLinkElement): boolean {
  *   popup's document for detached windows.
  */
 export function applyHostSheetFallback(doc: Document = document): void {
+  if (doc.documentElement.dataset.canopyHost === undefined) return;
   const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[data-canopy-host-sheet]'));
   const dead = links.filter(isDead);
   if (dead.length === 0) return;
