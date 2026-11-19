@@ -1,0 +1,64 @@
+{
+  "description": "An object carrying `$role` is a ColorRole at any depth, and a ColorRole is closed: no keys besides `$role`, `fallback` and `fallbackDark`.",
+  "valid": false,
+  "errors": [
+    {
+      "rule": "schema",
+      "instancePath": "/root/children/0/props/curves/0/color"
+    }
+  ],
+  "screen": {
+    "schemaVersion": "1.1",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "waveform-plot",
+          "props": {
+            "curves": [
+              {
+                "y_channel": "DEMO:WF",
+                "color": {
+                  "$role": "plot.series.1",
+                  "fallback": "#6929c4",
+                  "name": "purple"
+                }
+              }
+            ]
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          }
+        }
+      ]
+    }
+  }
+}

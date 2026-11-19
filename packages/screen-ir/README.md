@@ -23,12 +23,13 @@ validateDetailed(doc); // { rule, instancePath, message }[]
 `validate()` checks the JSON Schema first, then the semantic rules the schema
 can't express. Those rules are defined in the canopy-spec README:
 
-| `rule`                    | Fails when                                                  |
-| ------------------------- | ----------------------------------------------------------- |
-| `schema`                  | The document doesn't match the JSON Schema                  |
-| `macro-default-required`  | A screen's macro has no `default`                           |
-| `macro-default-forbidden` | A template's macro declares a `default`                     |
-| `formula-ref-unresolved`  | A `formula://` reference has no matching `formulas[]` entry |
+| `rule`                    | Fails when                                                         |
+| ------------------------- | ------------------------------------------------------------------ |
+| `schema`                  | The document doesn't match the JSON Schema                         |
+| `macro-default-required`  | A screen's macro has no `default`                                  |
+| `macro-default-forbidden` | A template's macro declares a `default`                            |
+| `formula-ref-unresolved`  | A `formula://` reference has no matching `formulas[]` entry        |
+| `color-role-version`      | A `"1.0"` document carries a color role in a prop or rule position |
 
 `instancePath` is a JSON Pointer to the failing location. The package passes
 canopy-spec's conformance cases at level 2: valid vs invalid, plus each error's
