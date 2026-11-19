@@ -21,5 +21,8 @@ LICENSE.md
 # Copied byte for byte from slaclab/canopy-spec; formatting would break the copies
 packages/screen-ir/spec
 
+# Byte-pinned wire fixtures (sha256 asserted here and in canopy); never reformat
+packages/client/src/formula-engine/__fixtures__
+
 # Byte copies of canopy's heartbeat and write-outcome vectors (sha256 gated across canopy and the sdk); never reformat
 packages/client/test-vectors
