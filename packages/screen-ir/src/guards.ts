@@ -1,4 +1,4 @@
-/** Internal type guards shared by the readers in this package; not exported from the index. */
+/** Internal guards and helpers shared by the modules in this package; not exported from the index. */
 
 /** True when `x` is a plain object (not `null`, not an array). */
 export function isRecord(x: unknown): x is Readonly<Record<string, unknown>> {
@@ -12,4 +12,13 @@ export function isRecord(x: unknown): x is Readonly<Record<string, unknown>> {
  */
 export function codePointLength(s: string): number {
   return [...s].length;
+}
+
+/** Freezes `value` and everything inside it, arrays included. */
+export function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    for (const child of Object.values(value)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
 }

@@ -18,6 +18,12 @@ const CONTRAST_PAIRS = [
 /** Grid splits by use: line colour (`Grid`) and the filled background (`Grid_Fill`). */
 const GRID_ROLES = ['Grid', 'Grid_Fill'];
 
+/** `value` and every object and array inside it. */
+function containers(value: unknown): object[] {
+  if (typeof value !== 'object' || value === null) return [];
+  return [value, ...Object.values(value).flatMap(containers)];
+}
+
 describe('canopyDefaultFlat', () => {
   it.each([
     ['Builder default table', BUILDER_DEFAULTS],
@@ -43,6 +49,19 @@ describe('canopyDefaultFlat', () => {
     expect(parsed).toEqual(canopyDefaultFlat);
     expect(canopyDefaultFlat.light).toHaveLength(canopyDefaultFlat.roles.length);
     expect(canopyDefaultFlat.dark).toHaveLength(canopyDefaultFlat.roles.length);
+  });
+
+  it('is deep-frozen, arrays included', () => {
+    const all = containers(canopyDefaultFlat);
+    expect(all.some(Array.isArray)).toBe(true);
+    expect(all.filter((container) => !Object.isFrozen(container))).toEqual([]);
+  });
+
+  it('throws on writes', () => {
+    expect(() => (canopyDefaultFlat.roles as string[]).push('x')).toThrow(TypeError);
+    expect(() => {
+      (canopyDefaultFlat.meta as { served: string }).served = 'changed';
+    }).toThrow(TypeError);
   });
 
   it('ships the data directory in the package', () => {

@@ -8,6 +8,11 @@ import { isRecord } from './guards.js';
  * `id` and `sha256` are `null` when no scheme file was loaded. `served` names the
  * scheme actually in effect, and `errors` lists the problems that made the server
  * fall back (empty on a clean load).
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
  */
 export interface SchemeMeta {
   readonly id: string | null;
@@ -17,7 +22,14 @@ export interface SchemeMeta {
   readonly errors: readonly SchemeError[];
 }
 
-/** One problem found while loading a scheme: a JSON-pointer-like `path` and a message. */
+/**
+ * One problem found while loading a scheme: a JSON-pointer-like `path` and a message.
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
+ */
 export interface SchemeError {
   readonly path: string;
   readonly message: string;
@@ -27,6 +39,11 @@ export interface SchemeError {
  * A color scheme flattened to parallel arrays: `light[i]` and `dark[i]` are the
  * colors of role `roles[i]`. Colors are canonical lowercase `#rrggbb`, or
  * `#rrggbbaa` when the alpha is not `ff`.
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
  */
 export interface FlatScheme {
   readonly roles: readonly string[];
@@ -35,7 +52,14 @@ export interface FlatScheme {
   readonly meta: SchemeMeta;
 }
 
-/** The scheme id the server serves when it falls back. */
+/**
+ * The scheme id the server serves when it falls back.
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
+ */
 export const CANOPY_DEFAULT_SCHEME_ID = 'canopy-default';
 
 const CANONICAL_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/;
@@ -83,6 +107,11 @@ function checkColors(name: 'light' | 'dark', colors: readonly string[]): string 
  * must be unique, 1–64 characters; colors must be canonical (lowercase, 6 or 8
  * hex digits, no `ff` alpha); and `meta` must be a {@link SchemeMeta} (with
  * nullable `id` and `sha256`).
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
  */
 export function parseFlatScheme(x: unknown): FlatScheme | { error: string } {
   if (!isRecord(x)) return { error: 'scheme must be an object' };
@@ -114,6 +143,11 @@ export function parseFlatScheme(x: unknown): FlatScheme | { error: string } {
  * True when the server fell back to the built-in default scheme because the
  * configured one failed to load: `served` is `canopy-default` and `errors` is
  * non-empty. `id` is not consulted — it is `null` when no file could be read at all.
+ *
+ * Experimental: canopy-spec v0.2.0 doesn't define the flat color scheme format,
+ * so it may change in a minor release until canopy-spec does.
+ *
+ * @experimental
  */
 export function isServerFallback(meta: SchemeMeta): boolean {
   return meta.served === CANOPY_DEFAULT_SCHEME_ID && meta.errors.length > 0;

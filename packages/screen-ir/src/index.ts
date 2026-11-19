@@ -38,6 +38,7 @@ export type { Rule, RulePvBinding, RuleCondition, RuleScalar, RuleValue } from '
 export type { ColorRole } from './colorRole.js';
 export { isColorRole } from './colorRole.js';
 
+// Experimental: may change in a minor release until canopy-spec defines the format.
 export type { FlatScheme, SchemeMeta, SchemeError } from './flatScheme.js';
 export { parseFlatScheme, isServerFallback, CANOPY_DEFAULT_SCHEME_ID } from './flatScheme.js';
 export { canopyDefaultFlat } from './canopyDefault.js';
