@@ -80,7 +80,11 @@ export interface HarePVServiceOptions {
    * or the socket closing.
    */
   onHeartbeat?: (state: HareHeartbeatState) => void;
-  /** Time budget of one `submit()` request, from the send; past it the outcome is `unknown`. Default 35000. */
+  /**
+   * Time budget of one `submit()` request, from the send; past it the outcome
+   * is `unknown`. A request whose `timeoutS` asks the server for longer gets
+   * that long plus 5 s instead. Default 35000.
+   */
   putTimeoutMs?: number;
 }
 
@@ -91,6 +95,12 @@ export interface HareWriteOptions {
 }
 
 const DEFAULT_PUT_TIMEOUT_MS = 35000;
+
+/**
+ * Time added to a request's own `timeoutS` for the server's reply to come
+ * back, when that timeout is longer than `putTimeoutMs`.
+ */
+const PUT_REPLY_MARGIN_MS = 5000;
 
 /**
  * Most PV names put in one subscribe/unsubscribe frame. Hare silently
@@ -115,6 +125,8 @@ interface QueuedWrite {
   binding: string | null;
   origin: PVWriteOrigin | undefined;
   timeoutS: number | undefined;
+  /** How long its request may go unanswered before the outcome is `unknown` (see `writeBudgetMs`). */
+  budgetMs: number;
   /** Sent as `confirmed: true` when a person confirmed the write. */
   confirmed: boolean;
   /** The connection and its heartbeat binding at call time: a pending write is dropped when either changed. */
@@ -409,8 +421,10 @@ export class HarePVService implements PVService {
    *   one supersedes it, and the superseded call resolves with the newer one's
    *   outcome and `coalesced: true`. A waiting value whose socket closed or
    *   whose heartbeat binding changed resolves `target-changed` with no request.
-   * - Never retries. No reply within `putTimeoutMs` of the send resolves
+   * - Never retries. No reply within the time budget of the send resolves
    *   `client-unknown`; the PV's slot stays held until that request settles.
+   *   The budget is `putTimeoutMs`, or `options.timeoutS` plus 5 s when that
+   *   is longer, so the server's own timeout runs out first.
    */
   submit(pvName: string, value: PVWriteValue, options: SubmitOptions = {}): Promise<WriteOutcome> {
     const hb = this.heartbeat();
@@ -424,6 +438,7 @@ export class HarePVService implements PVService {
         binding: options.binding !== undefined ? options.binding : hb.binding,
         origin: options.origin,
         timeoutS: options.timeoutS,
+        budgetMs: this.writeBudgetMs(options.timeoutS),
         confirmed: options.confirmed === true,
         connection,
         heartbeatBinding: hb.binding,
@@ -453,11 +468,24 @@ export class HarePVService implements PVService {
       clearTimeout(timer);
       settleWrite(entry, outcome);
     };
-    const timer = setTimeout(() => finish(clientOutcome('client-unknown')), this.putTimeoutMs);
+    const timer = setTimeout(() => finish(clientOutcome('client-unknown')), entry.budgetMs);
     void this.sendWriteRequest(pvName, entry).then((outcome) => {
       finish(outcome);
       this.releaseWriteSlot(pvName);
     });
+  }
+
+  /**
+   * How long a request with this `timeoutS` may go unanswered:
+   * `putTimeoutMs`, or the server's timeout plus `PUT_REPLY_MARGIN_MS` when
+   * that is longer. A `timeoutS` that is not a positive number is ignored here
+   * (the server rejects it).
+   */
+  private writeBudgetMs(timeoutS: number | undefined): number {
+    if (timeoutS === undefined || !Number.isFinite(timeoutS) || timeoutS <= 0) {
+      return this.putTimeoutMs;
+    }
+    return Math.max(this.putTimeoutMs, timeoutS * 1000 + PUT_REPLY_MARGIN_MS);
   }
 
   /** The request settled: send the PV's pending value, if it is still valid, or free the slot. */

@@ -1017,6 +1017,57 @@ describe('HarePVService.heartbeat / submit', () => {
       await vi.advanceTimersByTimeAsync(1000);
       expect(got.value?.outcome).toBe('unknown');
     });
+
+    it('waits timeoutS plus 5 s when the request asks the server for longer', async () => {
+      const { fetchFn, calls } = deferredFetch();
+      const { service } = connected(fetchFn);
+      const got = track(service.submit('SIM:PV1', 1, { timeoutS: 120 }));
+      await tick();
+      expect(calls[0]!.body.timeout).toBe(120);
+      await vi.advanceTimersByTimeAsync(124_999);
+      expect(got.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(got.value).toMatchObject({ outcome: 'unknown', row: 'client-unknown' });
+    });
+
+    it('keeps putTimeoutMs for a shorter timeoutS and ignores one that is not a positive number', async () => {
+      const { fetchFn } = deferredFetch();
+      const { service } = connected(fetchFn);
+      const short = track(service.submit('SIM:PV1', 1, { timeoutS: 3 }));
+      const nan = track(service.submit('SIM:PV2', 1, { timeoutS: Number.NaN }));
+      const negative = track(service.submit('SIM:PV3', 1, { timeoutS: -1 }));
+      const infinite = track(service.submit('SIM:PV4', 1, { timeoutS: Infinity }));
+      await vi.advanceTimersByTimeAsync(34_999);
+      expect([short.value, nan.value, negative.value, infinite.value]).toEqual([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+      await vi.advanceTimersByTimeAsync(1);
+      for (const got of [short, nan, negative, infinite]) {
+        expect(got.value?.outcome).toBe('unknown');
+      }
+    });
+
+    it('adds the 5 s to timeoutS over a configured putTimeoutMs too', async () => {
+      const { fetchFn } = deferredFetch();
+      const { factory, instances } = createFakeWebSocketFactory();
+      const service = new HarePVService({
+        url: BASE_URL,
+        webSocketFactory: factory,
+        fetchFn,
+        putTimeoutMs: 1000,
+      });
+      service.connect();
+      instances[0]!.open();
+      instances[0]!.message(heartbeatFrame(BINDING));
+      const got = track(service.submit('SIM:PV1', 1, { timeoutS: 2 }));
+      await vi.advanceTimersByTimeAsync(6_999);
+      expect(got.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(got.value?.outcome).toBe('unknown');
+    });
   });
 
   // ── write()/put() unchanged ──────────────────────────────────────────────
