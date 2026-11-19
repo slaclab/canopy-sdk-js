@@ -371,6 +371,22 @@ describe('write-outcome table', () => {
       detail: 'writes are not enabled on this server',
       coalesced: false,
     });
+    // Every 405 is writes-not-enabled; an envelope code rides along as `code`.
+    expect(outcomeFromResponse(false, 405, envelope('method_not_allowed', 'PUT is off'))).toEqual({
+      outcome: 'refused',
+      row: 'writes-not-enabled',
+      code: 'method_not_allowed',
+      status: 405,
+      detail: 'writes are not enabled on this server',
+      coalesced: false,
+    });
+    expect(
+      outcomeFromResponse(false, 405, envelope('pv_write_refused', 'channel SIM:PV1 is read-only'))
+    ).toMatchObject({
+      row: 'writes-not-enabled',
+      code: 'pv_write_refused',
+      detail: 'writes are not enabled on this server',
+    });
     expect(
       outcomeFromResponse(false, 401, envelope('invalid_access_credential', 'bad X-Canopy-Access'))
     ).toMatchObject({
