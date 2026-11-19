@@ -428,9 +428,11 @@ fallback.
 A host stylesheet declares the contract version it was written for as
 `--canopy-host-contract: 1` on the anchor. A 1.x release of the contract adds
 names with fallbacks only, so a host written for 1.0 keeps working; renaming or
-removing a name is version 2. `useHostTheme` warns once in the console when the
-declared version is missing or has a different major, and applies the theme
-either way.
+removing a name is version 2. `useHostTheme` reads the declared version once
+for each valid theme id the host asks for, and warns in the console when it is
+missing or has a different major; it applies the theme either way. Nothing is
+read while the host has sent no valid id, since a host stylesheet may declare
+the version under its theme ids only.
 
 ### The names
 

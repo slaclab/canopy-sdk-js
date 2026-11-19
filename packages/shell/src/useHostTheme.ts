@@ -37,8 +37,10 @@ export interface HostThemeAnchorProps {
  * `mode` (a root rendered into a detached window follows that window, not the
  * opener). While that document still carries the host marker
  * (`data-canopy-host` on `<html>`), it also reads the sheet's
- * `--canopy-host-contract` version from the anchor, once per mount, and warns
- * once when the version is missing or has a different major. The theme applies
+ * `--canopy-host-contract` version from the anchor once for each valid theme
+ * id the host asks for, and warns when that version is missing or has a
+ * different major. Nothing is read while the host has sent no valid id: a host
+ * sheet may declare the version under its theme ids only. The theme applies
  * either way.
  *
  * @param raw - Theme id requested by the host, or `null` when there is none.
@@ -49,9 +51,11 @@ export function useHostTheme<E extends HTMLElement = HTMLElement>(
   mode: ColorMode
 ): { id: string; anchorRef: RefObject<E | null>; anchorProps: HostThemeAnchorProps } {
   // `RegExp.test` coerces its argument, so `null` would match as 'null'.
-  const id = raw !== null && HOST_THEME_ID.test(raw) ? raw : mode;
+  const valid = raw !== null && HOST_THEME_ID.test(raw);
+  const id = valid ? raw : mode;
   const anchorRef = useRef<E | null>(null);
-  const markerRead = useRef(false);
+  // The ids whose contract version this root has read.
+  const checked = useRef<Set<string> | null>(null);
 
   useLayoutEffect(() => {
     const el = anchorRef.current;
@@ -59,9 +63,10 @@ export function useHostTheme<E extends HTMLElement = HTMLElement>(
     const doc = el.ownerDocument;
     doc.documentElement.dataset.theme = mode;
 
-    if (markerRead.current) return;
-    markerRead.current = true;
-    if (doc.documentElement.dataset.canopyHost === undefined) return;
+    if (!valid || doc.documentElement.dataset.canopyHost === undefined) return;
+    const seen = (checked.current ??= new Set());
+    if (seen.has(id)) return;
+    seen.add(id);
 
     const version = (doc.defaultView ?? window)
       .getComputedStyle(el)
@@ -69,14 +74,14 @@ export function useHostTheme<E extends HTMLElement = HTMLElement>(
       .trim();
     if (version === '') {
       console.warn(
-        `canopy: host stylesheet declares no contract version; expected ${CONTRACT_MAJOR}.x`
+        `canopy: host stylesheet declares no contract version for theme ${id}; expected ${CONTRACT_MAJOR}.x`
       );
     } else if (version.split('.')[0] !== CONTRACT_MAJOR) {
       console.warn(
-        `canopy: host stylesheet declares contract version ${version}; expected ${CONTRACT_MAJOR}.x`
+        `canopy: host stylesheet declares contract version ${version} for theme ${id}; expected ${CONTRACT_MAJOR}.x`
       );
     }
-  }, [mode]);
+  }, [mode, id, valid]);
 
   return {
     id,

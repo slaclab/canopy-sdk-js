@@ -16,7 +16,7 @@ function Root({ raw, mode, contract }: { raw: string | null; mode: ColorMode; co
 }
 
 function PortalRoot({ target, mode }: { target: HTMLElement; mode: ColorMode }) {
-  return createPortal(<Root raw={null} mode={mode} contract="1" />, target);
+  return createPortal(<Root raw="retro-light" mode={mode} contract="1" />, target);
 }
 
 function markHosted(doc: Document = document): void {
@@ -159,6 +159,7 @@ describe('useHostTheme contract marker', () => {
     const warn = spyWarn();
     const { getByTestId } = render(<Root raw="retro-dark" mode="dark" />);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('no contract version for theme retro-dark');
     expect(warn.mock.calls[0]![0]).toContain('expected 1.x');
     // The theme still applies.
     expect(getByTestId('anchor').getAttribute('data-theme')).toBe('retro-dark');
@@ -175,15 +176,40 @@ describe('useHostTheme contract marker', () => {
     expect(getByTestId('anchor').getAttribute('data-theme')).toBe('retro-dark');
   });
 
-  it('reads the marker once per mount, across re-renders and mode changes', () => {
+  it('reads the marker once per id, across re-renders and mode changes', () => {
     markHosted();
     const read = vi.spyOn(window, 'getComputedStyle');
     const warn = spyWarn();
     const { rerender } = render(<Root raw="retro-dark" mode="dark" contract="2" />);
+    rerender(<Root raw="retro-dark" mode="light" contract="2" />);
     rerender(<Root raw="retro-light" mode="light" contract="2" />);
     rerender(<Root raw="retro-dark" mode="dark" contract="2" />);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads nothing until the host sends a valid theme id', () => {
+    // A host sheet may declare the version under its theme ids only, so the
+    // anchor carries none while it shows the mode.
+    markHosted();
+    const read = vi.spyOn(window, 'getComputedStyle');
+    const warn = spyWarn();
+    const { rerender } = render(<Root raw={null} mode="dark" />);
+    rerender(<Root raw="../x" mode="dark" />);
+    expect(read).not.toHaveBeenCalled();
+
+    rerender(<Root raw="retro-dark" mode="dark" contract="1" />);
     expect(read).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('reports a major mismatch declared under an id that arrives after mount', () => {
+    markHosted();
+    const warn = spyWarn();
+    const { rerender } = render(<Root raw={null} mode="dark" />);
+    rerender(<Root raw="retro-dark" mode="dark" contract="2" />);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('version 2 for theme retro-dark');
   });
 
   it('warns once under StrictMode', () => {
