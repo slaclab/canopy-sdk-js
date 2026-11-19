@@ -16,8 +16,9 @@ import * as setups from '../fixtures/host/setups.mjs';
 import type { PageLike } from '../fixtures/host/setups.mjs';
 import { HOST_THEME_ID, modeFromThemeId } from './useHostTheme.js';
 
-// The package has no @types/node, so the Node built-ins this test needs are reached through
-// process.getBuiltinModule with just the shape used here.
+// The library's tsconfig loads no Node types (only tsconfig.scripts.json does), so the Node
+// built-ins this test needs are reached through process.getBuiltinModule with just the shape
+// used here.
 interface NodeBuiltins {
   fs: { readFileSync(path: string, encoding: 'utf8'): string };
   path: { join(...parts: string[]): string; dirname(path: string): string };

@@ -316,7 +316,7 @@ describe('buildTokens', () => {
     const tokens = buildTokens(parseStylesheet(stylesheet()));
 
     expect(Object.keys(tokens.names)).toEqual(NAMES);
-    expect(CONTRACT.map(([name]: [string]) => name)).toEqual(NAMES);
+    expect(CONTRACT.map(([name]) => name)).toEqual(NAMES);
     expect(tokens.contract).toBe(1);
     expect(tokens.zones).toEqual(['white', 'g10', 'g90', 'g100']);
   });

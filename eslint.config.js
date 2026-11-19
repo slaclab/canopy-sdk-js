@@ -7,7 +7,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 export default defineConfig([
   globalIgnores(['**/dist']),
   {
-    files: ['**/*.{ts,tsx}'],
+    // The shell's generator and probe kit are plain ES modules with hand-written .d.mts types.
+    files: ['**/*.{ts,tsx}', 'packages/shell/**/*.{mjs,mts}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
