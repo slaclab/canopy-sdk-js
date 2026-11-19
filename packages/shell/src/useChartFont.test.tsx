@@ -1,4 +1,5 @@
-import { act, renderHook } from '@testing-library/react';
+import { StrictMode, useRef } from 'react';
+import { act, render, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useChartFont } from './useChartFont.js';
 
@@ -18,8 +19,8 @@ function stubFonts(doc: Document, load: Load): void {
   Object.defineProperty(doc, 'fonts', { value: { load }, configurable: true });
 }
 
-// A stable ref object, as `useRef` gives a component: the hook reads again only
-// when it is handed a different ref.
+// Each test hands the hook a plain ref object, as `useRef` gives a component: the
+// hook reads again only when the element behind it, or the key, changes.
 async function flush(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
@@ -135,6 +136,86 @@ describe('useChartFont', () => {
     await flush();
 
     expect(result.current.fontFamily).toBe('IBM Plex Sans');
+    expect(read.mock.calls.filter(([target]) => target === el)).toHaveLength(1);
+  });
+
+  it('reads a wrapper that mounts after the first commit', async () => {
+    // A chart that renders nothing until its data arrives.
+    function Chart({ data }: { data: boolean }) {
+      const ref = useRef<HTMLDivElement>(null);
+      const { fontFamily, ready } = useChartFont(ref);
+      return data ? (
+        <div ref={ref} style={{ fontFamily: 'IBM Plex Sans' }} data-testid="chart">
+          {`${fontFamily ?? 'none'}:${ready}`}
+        </div>
+      ) : (
+        <p data-testid="chart">{`${fontFamily ?? 'none'}:${ready}`}</p>
+      );
+    }
+
+    const { getByTestId, rerender } = render(<Chart data={false} />);
+    await flush();
+    expect(getByTestId('chart').textContent).toBe('none:false');
+
+    rerender(<Chart data />);
+    await flush();
+    expect(getByTestId('chart').textContent).toBe('IBM Plex Sans:true');
+  });
+
+  it('reads again when the element behind the ref changes, and clears when it goes', async () => {
+    const first = wrapperIn(document, 'IBM Plex Sans');
+    const second = wrapperIn(document, 'IBM Plex Mono');
+    const ref: { current: HTMLElement | null } = { current: first };
+
+    const { result, rerender } = renderHook(() => useChartFont(ref));
+    await flush();
+    expect(result.current).toEqual({ fontFamily: 'IBM Plex Sans', ready: true });
+
+    ref.current = second;
+    rerender();
+    await flush();
+    expect(result.current).toEqual({ fontFamily: 'IBM Plex Mono', ready: true });
+
+    ref.current = null;
+    rerender();
+    await flush();
+    expect(result.current).toEqual({ fontFamily: undefined, ready: false });
+  });
+
+  it('reads again when the key changes, and only then', async () => {
+    const el = wrapperIn(document, 'IBM Plex Sans');
+    const read = vi.spyOn(window, 'getComputedStyle');
+    const ref = { current: el };
+    const reads = () => read.mock.calls.filter(([target]) => target === el).length;
+
+    const { result, rerender } = renderHook(({ theme }) => useChartFont(ref, theme), {
+      initialProps: { theme: 'retro-dark' },
+    });
+    await flush();
+    expect(result.current.fontFamily).toBe('IBM Plex Sans');
+
+    // The host switched themes: the wrapper now computes another family.
+    el.style.fontFamily = 'Probe Sans';
+    rerender({ theme: 'retro-dark' });
+    await flush();
+    expect(result.current.fontFamily).toBe('IBM Plex Sans');
+    expect(reads()).toBe(1);
+
+    rerender({ theme: 'probe-a-dark' });
+    await flush();
+    expect(result.current).toEqual({ fontFamily: 'Probe Sans', ready: true });
+    expect(reads()).toBe(2);
+  });
+
+  it('reads once under StrictMode', async () => {
+    const el = wrapperIn(document, 'IBM Plex Sans');
+    const read = vi.spyOn(window, 'getComputedStyle');
+    const ref = { current: el };
+
+    const { result } = renderHook(() => useChartFont(ref), { wrapper: StrictMode });
+    await flush();
+
+    expect(result.current).toEqual({ fontFamily: 'IBM Plex Sans', ready: true });
     expect(read.mock.calls.filter(([target]) => target === el)).toHaveLength(1);
   });
 });

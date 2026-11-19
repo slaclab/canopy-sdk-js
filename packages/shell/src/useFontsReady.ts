@@ -31,22 +31,26 @@ function loadFamily(family: string, doc: Document): Promise<void> {
  * True once `family` has finished loading in `doc`, whether the load succeeded
  * or failed. False while `family` is undefined or empty.
  *
+ * `doc` defaults to the global document. Without one (server rendering) the
+ * hook loads nothing and stays false.
+ *
  * Canvas text (charts) is measured with whatever face is available at draw
  * time, so a consumer redraws when this flips to true.
  */
-export function useFontsReady(family: string | undefined, doc: Document): boolean {
+export function useFontsReady(family: string | undefined, doc?: Document): boolean {
+  const target = doc ?? (typeof document === 'undefined' ? undefined : document);
   const [settled, setSettled] = useState<{ family: string; doc: Document } | null>(null);
 
   useEffect(() => {
-    if (!family) return;
+    if (!family || !target) return;
     let live = true;
-    void loadFamily(family, doc).then(() => {
-      if (live) setSettled({ family, doc });
+    void loadFamily(family, target).then(() => {
+      if (live) setSettled({ family, doc: target });
     });
     return () => {
       live = false;
     };
-  }, [family, doc]);
+  }, [family, target]);
 
-  return !!family && settled !== null && settled.family === family && settled.doc === doc;
+  return !!family && settled !== null && settled.family === family && settled.doc === target;
 }

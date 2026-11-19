@@ -114,6 +114,19 @@ describe('useFontsReady', () => {
     expect(loadB).toHaveBeenCalledTimes(1);
   });
 
+  it('defaults to the global document when none is given', async () => {
+    const load = vi.fn<Load>(() => Promise.resolve([]));
+    Object.defineProperty(document, 'fonts', { value: { load }, configurable: true });
+    try {
+      const { result } = renderHook(() => useFontsReady('IBM Plex Serif'));
+      await flush();
+      expect(result.current).toBe(true);
+      expect(load).toHaveBeenCalledWith('1em IBM Plex Serif');
+    } finally {
+      Reflect.deleteProperty(document, 'fonts');
+    }
+  });
+
   it('drops back to false when the family changes, until the new one settles', async () => {
     let resolveMono!: (faces: unknown[]) => void;
     const load = vi.fn<Load>((font) =>

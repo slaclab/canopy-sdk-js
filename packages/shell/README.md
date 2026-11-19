@@ -514,10 +514,15 @@ All are exported from the package root.
 - **`useHostTheme(raw, mode)`.** Validates the theme id the host asked for,
   falls back to the app's colour mode, and returns the `id`, an `anchorRef`
   and the `anchorProps` for the root element.
-- **`useChartFont(ref)`.** Returns the font family a chart's wrapper element
-  computes and whether it has loaded, because canvas text does not inherit CSS.
-- **`useFontsReady(family, doc)`.** Turns true once a font family has finished
-  loading in a document, which is when a canvas chart should redraw.
+- **`useChartFont(ref, key?)`.** Returns the font family a chart's wrapper
+  element computes and whether it has loaded, because canvas text does not
+  inherit CSS. It reads again when the element behind `ref` changes, so a
+  wrapper that mounts late is covered, and when `key` changes: pass the host
+  theme id so a live theme switch re-reads the font. Safe to server-render.
+- **`useFontsReady(family, doc?)`.** Turns true once a font family has finished
+  loading in a document, which is when a canvas chart should redraw. `doc`
+  defaults to the global document; without one (server rendering) it stays
+  false.
 - **`modeFromThemeId(id)`.** Maps a theme id to a colour mode: `light` and
   every `*-light` id are light, everything else is dark.
 - **`HOST_THEME_ID`.** The regular expression a theme id must match
