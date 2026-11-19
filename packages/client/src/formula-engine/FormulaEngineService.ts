@@ -382,15 +382,22 @@ export class FormulaEngineService {
 }
 
 /**
- * Fill wire defaults the server may omit: a `'table'` input without
- * `lateAfterFinal` reads as `false`. Other kinds pass through untouched.
+ * Fill wire defaults the server may omit: a missing `scalar`, `timeseries` or
+ * `waveform` reads as null (a `'table'` frame carries only `{ kind, table }`),
+ * and a `'table'` input without `lateAfterFinal` reads as `false`.
  */
 function normalizeResult(data: FormulaResultDTO): FormulaResultDTO {
+  const filled: FormulaResultDTO = {
+    ...data,
+    scalar: data.scalar ?? null,
+    timeseries: data.timeseries ?? null,
+    waveform: data.waveform ?? null,
+  };
   const table = data.table;
-  if (!table?.inputs) return data;
+  if (!table?.inputs) return filled;
   const inputs: Record<string, TableInputDTO> = {};
   for (const [binding, input] of Object.entries(table.inputs)) {
     inputs[binding] = { ...input, lateAfterFinal: input.lateAfterFinal ?? false };
   }
-  return { ...data, table: { ...table, inputs } };
+  return { ...filled, table: { ...table, inputs } };
 }

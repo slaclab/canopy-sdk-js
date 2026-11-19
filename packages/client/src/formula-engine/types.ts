@@ -119,7 +119,9 @@ export interface TableResultDTO {
 
 /**
  * Tagged union by `kind`: exactly the matching member is non-null. `table`
- * frames may carry only `{ kind, table }`, without the null siblings.
+ * frames may carry only `{ kind, table }`, without the null siblings;
+ * `FormulaEngineService` delivers those siblings as null, so `scalar`,
+ * `timeseries` and `waveform` are always present.
  */
 export interface FormulaResultDTO {
   kind: FormulaKind;

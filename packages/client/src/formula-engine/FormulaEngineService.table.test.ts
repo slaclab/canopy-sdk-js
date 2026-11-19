@@ -243,6 +243,32 @@ describe('canopy-client table protocol', () => {
       });
     });
 
+    it('delivers the scalar, timeseries and waveform a table frame omits as null', () => {
+      const frame = fixture<FormulaEngineResultFrame>('table-result-empty.json');
+      expect(frame.data).not.toHaveProperty('scalar');
+      expect(frame.data).not.toHaveProperty('timeseries');
+      expect(frame.data).not.toHaveProperty('waveform');
+      const { service, socket } = connectedService();
+      const onResult = vi.fn<(data: FormulaResultDTO) => void>();
+      service.subscribe(fixture<FormulaEngineSubscribeMessage>('table-spec-timer.json').spec, {
+        onResult,
+      });
+      socket.message({ type: 'subscribed', id: frame.id });
+      socket.message(frame);
+
+      const data = onResult.mock.calls[0]![0];
+      expect(data.scalar).toBeNull();
+      expect(data.timeseries).toBeNull();
+      expect(data.waveform).toBeNull();
+      expect(data).toEqual({
+        kind: 'table',
+        scalar: null,
+        timeseries: null,
+        waveform: null,
+        table: frame.data.table,
+      });
+    });
+
     it('reads a missing lateAfterFinal as false', () => {
       const frame = withoutLateFlag(fixture<FormulaEngineResultFrame>('table-result-trigger.json'));
       expect(frame.data.table!.inputs.y1).not.toHaveProperty('lateAfterFinal');
@@ -275,6 +301,14 @@ describe('canopy-client table protocol', () => {
       };
       socket.message({ type: 'result', id: 'srv-1', data });
       expect(onResult).toHaveBeenCalledExactlyOnceWith(data);
+
+      // A frame that leaves out the null siblings of its kind gets them all the same.
+      socket.message({
+        type: 'result',
+        id: 'srv-1',
+        data: { kind: 'scalar', scalar: data.scalar },
+      });
+      expect(onResult).toHaveBeenLastCalledWith(data);
     });
   });
 
