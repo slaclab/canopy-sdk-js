@@ -1,8 +1,13 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 import { CANOPY_DEFAULT_SCHEME_ID, canopyDefaultFlat, parseFlatScheme } from './index.js';
 
-/** sha256 of the canonical canopy-default.json the flat file was generated from. */
+/**
+ * sha256 of the canonical canopy-default.json the flat file was generated from.
+ * That file isn't in this repo, so the hash can't be recomputed here; the pin
+ * only makes regenerating the flat file a deliberate change to this test too.
+ */
 const PACKAGED_SHA256 = '0a8f403e70f0b9a5dc2eb9679da24f72f54209e19a8a9043d3de636e49ce810d';
 
 const BUILDER_DEFAULTS = ['Text', 'Read_Background', 'Background', 'On', 'Off'];
@@ -40,7 +45,17 @@ describe('canopyDefaultFlat', () => {
     expect(canopyDefaultFlat.meta.served).toBe(CANOPY_DEFAULT_SCHEME_ID);
     expect(canopyDefaultFlat.meta.sha256).toBe(PACKAGED_SHA256);
     expect(canopyDefaultFlat.meta.errors).toEqual([]);
-    expect(canopyDefaultFlat.meta.flatHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('carries the flatHash of its own roles and colors', () => {
+    // flatHash is the sha256 of {dark, light, roles} as compact JSON with sorted
+    // keys. JSON.stringify writes those bytes only while every string is ASCII
+    // (a sorted-key encoder may escape other characters), so check that first.
+    const { dark, light, roles } = canopyDefaultFlat;
+    const table = JSON.stringify({ dark, light, roles });
+    expect(table).toMatch(/^[\x20-\x7e]*$/);
+    const recomputed = createHash('sha256').update(table).digest('hex');
+    expect(canopyDefaultFlat.meta.flatHash).toBe(recomputed);
   });
 
   it('is a valid flat scheme with parallel light and dark arrays', () => {
