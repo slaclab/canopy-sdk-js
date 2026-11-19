@@ -1,0 +1,111 @@
+/*
+ * A synthetic host stylesheet for tests: three made-up themes that fill every
+ * name of host contract v1 with a value no Carbon theme uses, so a probe can
+ * tell a host value from a fallback. host.json holds the same values.
+ *
+ * The two color-scheme rules use the selectors of a host that writes
+ * [data-theme="…"] with double quotes, quotes included.
+ */
+
+/* prettier-ignore */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* prettier-ignore */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme='probe-a-dark'] {
+  --canopy-host-contract: 1;
+  --canopy-host-font-ui: 'Probe Sans', sans-serif;
+  --canopy-host-font-mono: 'Probe Mono', monospace;
+  --canopy-host-text-sm: 11px;
+  --canopy-host-text-md: 13px;
+  --canopy-host-text-lg: 17px;
+  --canopy-host-radius-sm: 7px;
+  --canopy-host-radius-md: 11px;
+  --canopy-host-control-h-xs: 22px;
+  --canopy-host-control-h-sm: 30px;
+  --canopy-host-bg-base: #101820;
+  --canopy-host-bg-panel: #18222c;
+  --canopy-host-bg-elevated: #202c38;
+  --canopy-host-bg-field: #283644;
+  --canopy-host-text-primary: #e8f0f8;
+  --canopy-host-text-secondary: #b0bcc8;
+  --canopy-host-text-muted: #8090a0;
+  --canopy-host-border: #344454;
+  --canopy-host-border-strong: #506478;
+  --canopy-host-accent: #123456;
+  --canopy-host-on-accent: #fedcba;
+  --canopy-host-accent-hover: #23456a;
+  --canopy-host-accent-tint: #1a2b3c;
+  --canopy-host-hover-tint: #2a3b4c;
+  --canopy-host-focus: #65fedc;
+  --canopy-host-status-success: #11aa55;
+  --canopy-host-status-warning: #ddaa11;
+  --canopy-host-status-error: #dd3344;
+}
+
+[data-theme='probe-b-dark'] {
+  --canopy-host-contract: 1;
+  --canopy-host-font-ui: 'Probe Sans B', sans-serif;
+  --canopy-host-font-mono: 'Probe Mono B', monospace;
+  --canopy-host-text-sm: 10px;
+  --canopy-host-text-md: 15px;
+  --canopy-host-text-lg: 19px;
+  --canopy-host-radius-sm: 5px;
+  --canopy-host-radius-md: 9px;
+  --canopy-host-control-h-xs: 20px;
+  --canopy-host-control-h-sm: 28px;
+  --canopy-host-bg-base: #201018;
+  --canopy-host-bg-panel: #2c1822;
+  --canopy-host-bg-elevated: #38202c;
+  --canopy-host-bg-field: #442836;
+  --canopy-host-text-primary: #f8e8f0;
+  --canopy-host-text-secondary: #c8b0bc;
+  --canopy-host-text-muted: #a08090;
+  --canopy-host-border: #543444;
+  --canopy-host-border-strong: #785064;
+  --canopy-host-accent: #654321;
+  --canopy-host-on-accent: #abcdef;
+  --canopy-host-accent-hover: #76543a;
+  --canopy-host-accent-tint: #3c2b1a;
+  --canopy-host-hover-tint: #4c3b2a;
+  --canopy-host-focus: #dcfe65;
+  --canopy-host-status-success: #22bb66;
+  --canopy-host-status-warning: #eebb22;
+  --canopy-host-status-error: #ee4455;
+}
+
+[data-theme='probe-light'] {
+  --canopy-host-contract: 1;
+  --canopy-host-font-ui: 'Probe Sans L', sans-serif;
+  --canopy-host-font-mono: 'Probe Mono L', monospace;
+  --canopy-host-text-sm: 13px;
+  --canopy-host-text-md: 15px;
+  --canopy-host-text-lg: 18px;
+  --canopy-host-radius-sm: 3px;
+  --canopy-host-radius-md: 13px;
+  --canopy-host-control-h-xs: 26px;
+  --canopy-host-control-h-sm: 34px;
+  --canopy-host-bg-base: #f8fcf4;
+  --canopy-host-bg-panel: #eef4e8;
+  --canopy-host-bg-elevated: #fdfef9;
+  --canopy-host-bg-field: #e4ecdc;
+  --canopy-host-text-primary: #182010;
+  --canopy-host-text-secondary: #48543c;
+  --canopy-host-text-muted: #6c7860;
+  --canopy-host-border: #c4d0b8;
+  --canopy-host-border-strong: #8c9880;
+  --canopy-host-accent: #0a5c8f;
+  --canopy-host-on-accent: #f0f8ff;
+  --canopy-host-accent-hover: #084a73;
+  --canopy-host-accent-tint: #d4e8f4;
+  --canopy-host-hover-tint: #e0e8d8;
+  --canopy-host-focus: #8f0a5c;
+  --canopy-host-status-success: #1a7f37;
+  --canopy-host-status-warning: #9a6700;
+  --canopy-host-status-error: #cf222e;
+}

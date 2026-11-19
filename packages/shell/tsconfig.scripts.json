@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  // gen-tokens.mjs itself is plain JavaScript; the tests see it through gen-tokens.d.mts.
+  "include": ["scripts"]
+}

@@ -1,0 +1,113 @@
+import { useLayoutEffect, useRef } from 'react';
+import type { RefObject } from 'react';
+import type { ColorMode } from './themeStore.js';
+
+/** The shape of a host theme id: lower-case letters, digits and hyphens, at most 40 characters. */
+export const HOST_THEME_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+/** Major version of the host contract this shell is written against. */
+const CONTRACT_MAJOR = '1';
+
+/** The Carbon zone classes whose hosted rules read what a host sets on the anchor. */
+const ZONE = '.cds--white, .cds--g10, .cds--g90, .cds--g100';
+
+/**
+ * The colour mode a theme id stands for: `light` and every `*-light` id are
+ * light, everything else is dark.
+ */
+export function modeFromThemeId(id: string): ColorMode {
+  return id === 'light' || id.endsWith('-light') ? 'light' : 'dark';
+}
+
+/** Attributes the anchor element of a hosted document root carries. */
+export interface HostThemeAnchorProps {
+  'data-canopy-host-root': '';
+  'data-floating-menu-container': '';
+  'data-theme': string;
+}
+
+/**
+ * The theme a hosted document root renders with, and the attributes that make
+ * its root element the anchor a host stylesheet styles.
+ *
+ * `raw` is the theme id a host asked for, untrusted. It is used only when it
+ * has the shape of `HOST_THEME_ID`; anything else, including no id at all,
+ * falls back to `mode`, so the raw string never reaches the DOM unchecked. An
+ * id the app does not know still passes: the host's sheet decides what it means.
+ *
+ * Spread `anchorProps` on the root element and attach `anchorRef` to it; that
+ * element must be the Carbon zone element (the one Carbon's `<Theme>` renders),
+ * or the host's values never reach it. After
+ * mount the hook sets `data-theme` on `<html>` of the anchor's own document to
+ * `mode` (a root rendered into a detached window follows that window, not the
+ * opener). While that document still carries the host marker
+ * (`data-canopy-host` on `<html>`), it also reads the sheet's
+ * `--canopy-host-contract` version from the anchor once for each valid theme
+ * id the host asks for, and warns when that version is missing or has a
+ * different major. Nothing is read while the host has sent no valid id: a host
+ * sheet may declare the version under its theme ids only. In that document it
+ * also warns once per mount when the anchor has no Carbon zone class. The
+ * theme applies either way.
+ *
+ * @param raw - Theme id requested by the host, or `null` when there is none.
+ * @param mode - Colour mode of the app; the fallback id and the document theme.
+ */
+export function useHostTheme<E extends HTMLElement = HTMLElement>(
+  raw: string | null,
+  mode: ColorMode
+): { id: string; anchorRef: RefObject<E | null>; anchorProps: HostThemeAnchorProps } {
+  // `RegExp.test` coerces its argument, so `null` would match as 'null'.
+  const valid = raw !== null && HOST_THEME_ID.test(raw);
+  const id = valid ? raw : mode;
+  const anchorRef = useRef<E | null>(null);
+  // The ids whose contract version this root has read.
+  const checked = useRef<Set<string> | null>(null);
+  const zoneChecked = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const doc = el.ownerDocument;
+    doc.documentElement.dataset.theme = mode;
+
+    if (doc.documentElement.dataset.canopyHost === undefined) return;
+    if (!zoneChecked.current) {
+      zoneChecked.current = true;
+      if (!el.matches(ZONE)) {
+        console.warn(
+          `canopy: the host theme anchor is not a Carbon zone element (${ZONE}), so the ` +
+            "host's values never apply; put anchorRef and anchorProps on Carbon's <Theme>"
+        );
+      }
+    }
+
+    if (!valid) return;
+    const seen = (checked.current ??= new Set());
+    if (seen.has(id)) return;
+    seen.add(id);
+
+    const version = (doc.defaultView ?? window)
+      .getComputedStyle(el)
+      .getPropertyValue('--canopy-host-contract')
+      .trim();
+    if (version === '') {
+      console.warn(
+        `canopy: host stylesheet declares no contract version for theme ${id}; expected ${CONTRACT_MAJOR}.x`
+      );
+    } else if (version.split('.')[0] !== CONTRACT_MAJOR) {
+      console.warn(
+        `canopy: host stylesheet declares contract version ${version} for theme ${id}; expected ${CONTRACT_MAJOR}.x`
+      );
+    }
+  }, [mode, id, valid]);
+
+  return {
+    id,
+    anchorRef,
+    anchorProps: {
+      'data-canopy-host-root': '',
+      'data-floating-menu-container': '',
+      'data-theme': id,
+    },
+  };
+}
