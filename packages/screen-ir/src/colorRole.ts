@@ -1,4 +1,4 @@
-import { isRecord } from './guards.js';
+import { codePointLength, isRecord } from './guards.js';
 
 /**
  * A themeable color reference: a legal value wherever a widget property holds a
@@ -8,7 +8,8 @@ import { isRecord } from './guards.js';
  * `$role` names a color role the viewer's theme resolves (for example
  * `"alarm.major"`). When the theme does not define the role, the viewer uses
  * `fallback`, or `fallbackDark` under a dark theme when it is present. Fallbacks
- * are `#rrggbb` or `#rrggbbaa` hex strings.
+ * are `#rrggbb` or `#rrggbbaa` hex strings. `$role` is 1–64 characters, counted
+ * in Unicode code points as the schema counts them.
  */
 export interface ColorRole {
   readonly $role: string;
@@ -25,9 +26,10 @@ function isHexColor(x: unknown): boolean {
 }
 
 /**
- * Type guard: true when `x` is a well-formed {@link ColorRole} — a 1–64 character
- * `$role`, hex `fallback`/`fallbackDark`, and no other keys (matching the schema's
- * `$defs/ColorRole`).
+ * Type guard: true when `x` is a well-formed {@link ColorRole} — a `$role` of
+ * 1–64 code points, hex `fallback`/`fallbackDark`, and no other keys (matching
+ * the schema's `$defs/ColorRole`). A `fallbackDark` of `undefined` counts as
+ * absent, as it does for the schema validator and once the role is serialized.
  */
 export function isColorRole(x: unknown): x is ColorRole {
   if (!isRecord(x)) return false;
@@ -35,7 +37,9 @@ export function isColorRole(x: unknown): x is ColorRole {
     if (!COLOR_ROLE_KEYS.has(key)) return false;
   }
   const role = x['$role'];
-  if (typeof role !== 'string' || role.length < 1 || role.length > ROLE_MAX_LENGTH) return false;
+  if (typeof role !== 'string') return false;
+  const length = codePointLength(role);
+  if (length < 1 || length > ROLE_MAX_LENGTH) return false;
   if (!isHexColor(x['fallback'])) return false;
-  return !('fallbackDark' in x) || isHexColor(x['fallbackDark']);
+  return x['fallbackDark'] === undefined || isHexColor(x['fallbackDark']);
 }

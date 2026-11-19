@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import schema from '../spec/screen-ir/screen-ir.schema.json' with { type: 'json' };
 import {
@@ -6,6 +9,7 @@ import {
   isSupportedSchemaVersion,
   stampSchemaVersion,
   validate,
+  validateDetailed,
 } from './index.js';
 
 const role = { $role: 'alarm.major', fallback: '#ff0000', fallbackDark: '#ff4040' };
@@ -162,10 +166,35 @@ describe('stampSchemaVersion', () => {
     expect(stampSchemaVersion(withChild({ props: { background: role } }))).toBe('1.1');
   });
 
-  it('ignores a malformed role-like object', () => {
-    expect(stampSchemaVersion(withRootProps({ foreground: { $role: 'x', fallback: 'red' } }))).toBe(
-      '1.0'
-    );
+  it('stamps 1.1 for a role whose fallbackDark is undefined', () => {
+    const doc = withRootProps({
+      foreground: { $role: 'x', fallback: '#ff0000', fallbackDark: undefined },
+    });
+    expect(stampSchemaVersion(doc)).toBe('1.1');
+  });
+
+  it('stamps 1.1 for a role name of non-BMP characters', () => {
+    const doc = withRootProps({
+      foreground: { $role: '\u{1F600}'.repeat(40), fallback: '#ff0000' },
+    });
+    expect(stampSchemaVersion(doc)).toBe('1.1');
+  });
+
+  it('stamps 1.1 for a malformed role-like object, as validate() treats $role as reserved', () => {
+    const doc = withRootProps({ foreground: { $role: 'x', fallback: 'red' } });
+    expect(stampSchemaVersion(doc)).toBe('1.1');
+    expect(validateDetailed({ ...doc, schemaVersion: '1.1' }).map((e) => e.rule)).toEqual([
+      'schema',
+    ]);
+  });
+
+  it("reads the props bag's own keys as prop names, not as a role", () => {
+    expect(stampSchemaVersion(withRootProps({ $role: 'x', fallback: '#000000' }))).toBe('1.0');
+  });
+
+  it('looks for roles only under root', () => {
+    const doc = { ...minimal, metadata: { ...minimal.metadata, source: { type: 'x', role } } };
+    expect(stampSchemaVersion(doc)).toBe('1.0');
   });
 
   it('does not depend on the incoming schemaVersion', () => {
@@ -176,5 +205,89 @@ describe('stampSchemaVersion', () => {
   it('handles non-object input', () => {
     expect(stampSchemaVersion(null)).toBe('1.0');
     expect(stampSchemaVersion('x')).toBe('1.0');
+    expect(stampSchemaVersion([minimal])).toBe('1.0');
   });
+
+  it.each([
+    ['a non-object root', { ...minimal, root: 'x' }],
+    ['an array root', { ...minimal, root: [{ props: { foreground: role } }] }],
+    ['non-container props, rules and children', { root: { props: 5, rules: 'x', children: {} } }],
+    [
+      'null rules, conditions and children',
+      { root: { rules: [null, { conditions: [null, 3] }], children: [null, 3] } },
+    ],
+  ])('stamps 1.0 without throwing for %s', (_label, doc) => {
+    expect(stampSchemaVersion(doc)).toBe('1.0');
+  });
+});
+
+interface ConformanceCase {
+  readonly valid: boolean;
+  readonly errors?: ReadonlyArray<{ readonly rule: string }>;
+  readonly screen: Record<string, unknown>;
+}
+
+const casesDir = fileURLToPath(new URL('../spec/conformance/screen-ir/validate', import.meta.url));
+/** Every conformance case that is valid, or invalid only because it is 1.0 and carries a role. */
+const stampableCases = readdirSync(casesDir)
+  .filter((name) => name.endsWith('.json'))
+  .sort()
+  .map((name): [string, ConformanceCase] => [
+    name,
+    JSON.parse(readFileSync(join(casesDir, name), 'utf8')) as ConformanceCase,
+  ])
+  .filter(
+    ([, c]) =>
+      c.valid ||
+      (c.errors !== undefined &&
+        c.errors.length > 0 &&
+        c.errors.every((e) => e.rule === 'color-role-version'))
+  )
+  .map(([name, c]): [string, Record<string, unknown>] => [`case ${name}`, c.screen]);
+
+const roleVariants: [string, Record<string, unknown>][] = [
+  ['role in a top-level prop', withRootProps({ foreground: role })],
+  [
+    'role with fallbackDark undefined',
+    withRootProps({ foreground: { $role: 'x', fallback: '#ff0000', fallbackDark: undefined } }),
+  ],
+  [
+    'role named by 40 non-BMP characters',
+    withRootProps({ foreground: { $role: '\u{1F600}'.repeat(40), fallback: '#ff0000' } }),
+  ],
+  [
+    'role in curves[].color',
+    withRootProps({
+      curves: [{ channel: 'SIM:A', color: { $role: 'plot', fallback: '#0000ff' } }],
+    }),
+  ],
+  [
+    "role in unknown-widget's originalProps",
+    withChild({ type: 'unknown-widget', props: { originalProps: { color: role } } }),
+  ],
+  ['role in a rule condition value', withConditional(role)],
+  ['role in a rule default', withConditional('#00ff00', role)],
+  ['role in a child widget', withChild({ props: { background: role } })],
+  ['props bag keyed $role and fallback', withRootProps({ $role: 'x', fallback: '#000000' })],
+];
+
+describe('stampSchemaVersion agrees with color-role-version', () => {
+  it('covers the role-bearing conformance cases', () => {
+    const names = stampableCases.map(([name]) => name);
+    expect(names).toContain('case invalid-color-role-in-version-1.0.json');
+    expect(names).toContain('case valid-version-1.1-without-roles.json');
+  });
+
+  it.each([...stampableCases, ...roleVariants])(
+    '%s: the stamped document validates, before and after JSON serialization',
+    (_label, doc) => {
+      const stamped = { ...doc, schemaVersion: stampSchemaVersion(doc) };
+      const saved: unknown = JSON.parse(JSON.stringify(stamped));
+      for (const copy of [stamped, saved]) {
+        const rules = validateDetailed(copy).map((e) => e.rule);
+        expect(rules).not.toContain('color-role-version');
+        expect(rules).toEqual([]);
+      }
+    }
+  );
 });

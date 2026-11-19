@@ -11,6 +11,10 @@ const accepted: [string, ColorRole][] = [
   ['8-digit hex with alpha', { $role: 'x', fallback: '#ff000080' }],
   ['uppercase hex', { $role: 'x', fallback: '#ABCDEF' }],
   ['64-character role', { $role: 'r'.repeat(64), fallback: '#000000' }],
+  // The schema counts code points; each of these is two UTF-16 code units.
+  ['role of 64 non-BMP characters', { $role: '\u{1F600}'.repeat(64), fallback: '#000000' }],
+  // Absent once serialized, and ajv treats it as absent too.
+  ['undefined fallbackDark', { $role: 'x', fallback: '#000000', fallbackDark: undefined }],
 ];
 
 describe('isColorRole', () => {
@@ -27,6 +31,7 @@ describe('isColorRole', () => {
     ['missing fallback', { $role: 'x' }],
     ['empty role', { $role: '', fallback: '#000000' }],
     ['65-character role', { $role: 'r'.repeat(65), fallback: '#000000' }],
+    ['role of 65 non-BMP characters', { $role: '\u{1F600}'.repeat(65), fallback: '#000000' }],
     ['non-string role', { $role: 1, fallback: '#000000' }],
     ['short hex fallback', { $role: 'x', fallback: '#ff' }],
     ['3-digit hex fallback', { $role: 'x', fallback: '#fff' }],
@@ -35,6 +40,8 @@ describe('isColorRole', () => {
     ['bad fallbackDark', { $role: 'x', fallback: '#000000', fallbackDark: '#ff' }],
     ['null fallbackDark', { $role: 'x', fallback: '#000000', fallbackDark: null }],
     ['extra key', { $role: 'x', fallback: '#000000', extra: 1 }],
+    ['undefined extra key', { $role: 'x', fallback: '#000000', extra: undefined }],
+    ['undefined fallback', { $role: 'x', fallback: undefined }],
   ])('rejects %s', (_label, v) => {
     expect(isColorRole(v)).toBe(false);
   });

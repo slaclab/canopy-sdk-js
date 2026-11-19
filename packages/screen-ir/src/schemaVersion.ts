@@ -1,4 +1,5 @@
-import { isColorRole } from './colorRole.js';
+import { carriesColorRole } from './colorRoleWalk.js';
+import { isRecord } from './guards.js';
 import type { SchemaVersion } from './screen.js';
 
 /**
@@ -15,20 +16,23 @@ export function isSupportedSchemaVersion(v: unknown): v is SchemaVersion {
   return SUPPORTED.has(v);
 }
 
-function containsColorRole(node: unknown): boolean {
-  if (typeof node !== 'object' || node === null) return false;
-  if (isColorRole(node)) return true;
-  const values: readonly unknown[] = Array.isArray(node) ? node : Object.values(node);
-  return values.some(containsColorRole);
-}
-
 /**
- * The lowest schema version that can carry `doc`: `'1.1'` when a deep walk of
- * the document (props at any depth such as `curves[].color`, rule condition
- * values, rule defaults, child widgets) finds a {@link ColorRole}, otherwise
- * `'1.0'`. The document's own `schemaVersion` field is ignored. Embedded
- * documents are separate files and are stamped on their own.
+ * The lowest schema version that can carry `doc`: `'1.1'` when `doc.root`, or
+ * any widget under it, holds a color role in its props at any depth (such as
+ * `curves[].color`, or `unknown-widget`'s `originalProps`) or at a rule position
+ * (a rule's `default` or a condition's `value`), otherwise `'1.0'`.
+ *
+ * This is the walk `validate()`'s `color-role-version` rule makes, so a document
+ * stamped here never fails that rule. Like the rule, it looks for the reserved
+ * `$role` key and does not check the role's shape: a malformed role still stamps
+ * `'1.1'`, and `validate()` reports it as a schema error. The props bag's own
+ * keys are prop names, never a role, and the document's other fields
+ * (`metadata`, `macros`, `formulas`) are not walked.
+ *
+ * The document's own `schemaVersion` is ignored, so an unedited `'1.1'` document
+ * without a role is stamped `'1.0'`. Input that is not an object is `'1.0'`.
+ * Embedded documents are separate files and are stamped on their own.
  */
 export function stampSchemaVersion(doc: unknown): SchemaVersion {
-  return containsColorRole(doc) ? '1.1' : '1.0';
+  return isRecord(doc) && carriesColorRole(doc['root']) ? '1.1' : '1.0';
 }
