@@ -1,0 +1,86 @@
+{
+  "description": "A document that carries a ColorRole must be version 1.1: a role in a nested prop such as `curves[].color` fails `color-role-version` on a 1.0 document.",
+  "valid": false,
+  "errors": [
+    {
+      "rule": "color-role-version",
+      "instancePath": "/schemaVersion"
+    }
+  ],
+  "screen": {
+    "schemaVersion": "1.0",
+    "kind": "screen",
+    "id": "conformance",
+    "metadata": {
+      "title": "Conformance",
+      "source": {
+        "type": "hand-authored"
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      }
+    },
+    "macros": [],
+    "root": {
+      "id": "w-001",
+      "type": "absolute-canvas",
+      "props": {
+        "width": 100,
+        "height": 100
+      },
+      "geometry": {
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 100
+      },
+      "children": [
+        {
+          "id": "w-002",
+          "type": "pv-label",
+          "props": {
+            "pv": "DEMO:A",
+            "foregroundColor": {
+              "$role": "alarm.major",
+              "fallback": "#ff0000",
+              "fallbackDark": "#ff6666"
+            },
+            "outlineColor": {
+              "$role": "accent",
+              "fallback": "#0f62fe"
+            },
+            "outlineWidth": 2
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          }
+        },
+        {
+          "id": "w-003",
+          "type": "waveform-plot",
+          "props": {
+            "curves": [
+              {
+                "y_channel": "DEMO:WF",
+                "color": {
+                  "$role": "plot.series.1",
+                  "fallback": "#6929c4ff"
+                }
+              }
+            ]
+          },
+          "geometry": {
+            "x": 10,
+            "y": 10,
+            "width": 80,
+            "height": 20
+          }
+        }
+      ]
+    }
+  }
+}

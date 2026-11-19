@@ -23,12 +23,13 @@ validateDetailed(doc); // { rule, instancePath, message }[]
 `validate()` checks the JSON Schema first, then the semantic rules the schema
 can't express. Those rules are defined in the canopy-spec README:
 
-| `rule`                    | Fails when                                                  |
-| ------------------------- | ----------------------------------------------------------- |
-| `schema`                  | The document doesn't match the JSON Schema                  |
-| `macro-default-required`  | A screen's macro has no `default`                           |
-| `macro-default-forbidden` | A template's macro declares a `default`                     |
-| `formula-ref-unresolved`  | A `formula://` reference has no matching `formulas[]` entry |
+| `rule`                    | Fails when                                                         |
+| ------------------------- | ------------------------------------------------------------------ |
+| `schema`                  | The document doesn't match the JSON Schema                         |
+| `macro-default-required`  | A screen's macro has no `default`                                  |
+| `macro-default-forbidden` | A template's macro declares a `default`                            |
+| `formula-ref-unresolved`  | A `formula://` reference has no matching `formulas[]` entry        |
+| `color-role-version`      | A `"1.0"` document carries a color role in a prop or rule position |
 
 `instancePath` is a JSON Pointer to the failing location. The package passes
 canopy-spec's conformance cases at level 2: valid vs invalid, plus each error's
@@ -37,7 +38,18 @@ rule and location.
 ## Exports
 
 - `validate`, `validateDetailed`, `ValidationError`, `ValidationRule`
-- `SCHEMA_VERSION`, and the model types (`ScreenJSON`, `WidgetNode`, `Rule`, …)
+- `SUPPORTED_SCHEMA_VERSIONS` (`'1.0'` and `'1.1'`) and `isSupportedSchemaVersion`,
+  for readers. `stampSchemaVersion(doc)`, for writers: the lowest version the
+  document needs, `'1.1'` only when it carries a color role. `SchemaVersion` is
+  either version.
+- `SCHEMA_VERSION` (`'1.0'`) is deprecated: use `SUPPORTED_SCHEMA_VERSIONS`,
+  `isSupportedSchemaVersion` and `stampSchemaVersion` instead.
+- The model types (`ScreenJSON`, `WidgetNode`, `Rule`, `RuleScalar`,
+  `RuleValue`, …)
+- `ColorRole` and `isColorRole`: a themeable color, allowed as a prop value at
+  any depth and at rule positions.
+- `Action`, `isAction` and `readActions`, for the reserved `props.actions` list.
+  `isAction` checks field types only, not whether an action is safe to run.
 - `MACRO_NAME_PATTERN`, the schema's macro name pattern
 - `IR_WIDGET_TYPES` (every IR widget `type` the spec defines),
   `WIDGET_DEFINITIONS` (each type's `propSchema` and `supports*` flags),
@@ -45,7 +57,14 @@ rule and location.
   `IRWidgetType`. Both exports are deep-frozen, since every importer shares
   them: copy a definition before changing it. Prop schemas are descriptive
   only for now: don't validate props against them.
-- `@slaclab/canopy-screen-ir/schema.json`: the JSON Schema file itself.
+- Experimental, and may change in a minor release until canopy-spec defines
+  the flat color scheme format: `FlatScheme`, `SchemeMeta`, `SchemeError`,
+  `parseFlatScheme`, `isServerFallback`, `CANOPY_DEFAULT_SCHEME_ID`, and
+  `canopyDefaultFlat` (the packaged `canopy-default` scheme, flattened and
+  deep-frozen).
+- `@slaclab/canopy-screen-ir/schema.json`: the Screen IR JSON Schema file itself.
+- `@slaclab/canopy-screen-ir/color-scheme.schema.json`: the JSON Schema for a
+  facility color scheme (`canopy-color-scheme/1`).
 
 ## Updating the spec
 
