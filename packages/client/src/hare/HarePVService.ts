@@ -307,9 +307,11 @@ export class HarePVService implements PVService {
     set.add(listener);
 
     let snapshot = this.snapshots.get(pvName);
-    if (!snapshot && this._status === 'disconnected') {
-      // The link is down: say so at once instead of leaving the PV silent
-      // until the next connect.
+    const linkDown =
+      this._status === 'disconnected' || (this._status === 'connecting' && this.openCount > 0);
+    if (!snapshot && linkDown) {
+      // The link is down, or coming back after a socket had opened: say so at
+      // once instead of leaving the PV silent until the next connect.
       snapshot = disconnectedCopy(DISCONNECTED_PV, undefined);
       this.snapshots.set(pvName, snapshot);
     }

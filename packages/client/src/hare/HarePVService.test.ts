@@ -1405,6 +1405,41 @@ describe('HarePVService', () => {
       expect(service.getSnapshot('LATE')).toEqual(data);
     });
 
+    it('delivers a disconnected snapshot at once to a subscribe while reconnecting', () => {
+      const { factory, instances } = createFakeWebSocketFactory();
+      const service = new HarePVService({
+        url: BASE_URL,
+        webSocketFactory: factory,
+        reconnectDelaysMs: [10],
+      });
+      service.connect();
+      instances[0]!.open();
+      instances[0]!.close();
+      vi.advanceTimersByTime(10);
+      expect(service.status).toBe('connecting');
+
+      const listener = vi.fn();
+      service.subscribe('SIM:LATE', listener);
+      expect(listener).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ connected: false, severity: AlarmSeverity.DISCONNECTED })
+      );
+
+      // And after disconnect() and connect(), while the new socket is connecting.
+      service.disconnect();
+      service.connect();
+      expect(service.status).toBe('connecting');
+      const again = vi.fn();
+      service.subscribe('SIM:LATER', again);
+      expect(again).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ connected: false, displayValue: '' })
+      );
+
+      // The handshake completes: the server's initial frame replaces the copy.
+      instances[2]!.open();
+      instances[2]!.message(initialFrame({ 'SIM:LATE': makeValue({ pv: 'SIM:LATE', value: 5 }) }));
+      expect(listener.mock.calls.at(-1)![0]).toMatchObject({ connected: true, value: 5 });
+    });
+
     it('delivers nothing on subscribe before the first connection', () => {
       const { factory } = createFakeWebSocketFactory();
       const service = new HarePVService({ url: BASE_URL, webSocketFactory: factory });
