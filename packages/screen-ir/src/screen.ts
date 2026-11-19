@@ -57,6 +57,13 @@ export interface ScreenMetadata {
  * Round-trip identity is a hard contract: open → save without edits → byte
  * (or at minimum semantically) identical output. Validators enforce this in
  * tests.
+ *
+ * `schemaVersion` is the one exception. canopy-spec has a writer stamp the
+ * lowest version a document needs, and `stampSchemaVersion()` ignores the
+ * version the document was read with, so an unedited `'1.1'` document that
+ * carries no color role is saved as `'1.0'`. canopy-spec's conformance case
+ * `valid-version-1.1-without-roles` is such a document. The contract holds for
+ * every other field.
  */
 export interface ScreenJSON {
   readonly schemaVersion: SchemaVersion;
