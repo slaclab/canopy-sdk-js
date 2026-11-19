@@ -28,7 +28,11 @@ import type {
   WriteOutcome,
 } from './types.js';
 import { ValueKind } from './types.js';
-import { clientOutcome, outcomeFromResponse } from './writeOutcome.js';
+import {
+  WRITE_OUTCOME_NOT_SENT_DETAIL,
+  clientOutcome,
+  outcomeFromResponse,
+} from './writeOutcome.js';
 
 export type { FetchLike, WebSocketFactory, WebSocketLike } from '../transport.js';
 
@@ -135,6 +139,8 @@ interface QueuedWrite {
   resolve: (outcome: WriteOutcome) => void;
   /** Earlier pending calls this one superseded; they resolve with its outcome, coalesced. */
   superseded: Array<(outcome: WriteOutcome) => void>;
+  /** While the value waits: drops it unsent once `budgetMs` has passed since its `submit()`. */
+  waitTimer?: ReturnType<typeof setTimeout>;
 }
 
 /** A PV's write slot: present while one request is in flight; `pending` is the latest value waiting. */
@@ -421,6 +427,10 @@ export class HarePVService implements PVService {
    *   one supersedes it, and the superseded call resolves with the newer one's
    *   outcome and `coalesced: true`. A waiting value whose socket closed or
    *   whose heartbeat binding changed resolves `target-changed` with no request.
+   *   A value still waiting once its own time budget has passed since its
+   *   `submit()` call resolves `client-unknown` with
+   *   `WRITE_OUTCOME_NOT_SENT_DETAIL` and is never sent; the request ahead of
+   *   it keeps the slot.
    * - Never retries. No reply within the time budget of the send resolves
    *   `client-unknown`; the PV's slot stays held until that request settles.
    *   The budget is `putTimeoutMs`, or `options.timeoutS` plus 5 s when that
@@ -453,9 +463,20 @@ export class HarePVService implements PVService {
       }
       const previous = slot.pending;
       if (previous) {
+        clearTimeout(previous.waitTimer);
         entry.superseded = [...previous.superseded, previous.resolve];
       }
       slot.pending = entry;
+      // The request ahead may hang far longer than this value should wait:
+      // past its own budget it is dropped, so it is never sent late.
+      entry.waitTimer = setTimeout(() => {
+        if (slot.pending !== entry) return;
+        slot.pending = null;
+        settleWrite(entry, {
+          ...clientOutcome('client-unknown'),
+          detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        });
+      }, entry.budgetMs);
     });
   }
 
@@ -498,6 +519,7 @@ export class HarePVService implements PVService {
       this.writeSlots.delete(pvName);
       return;
     }
+    clearTimeout(next.waitTimer);
     const hb = this.heartbeat();
     if (!hb.seen || this.connection !== next.connection || hb.binding !== next.heartbeatBinding) {
       this.writeSlots.delete(pvName);
@@ -513,6 +535,7 @@ export class HarePVService implements PVService {
       const entry = slot.pending;
       if (entry && !keep(entry)) {
         slot.pending = null;
+        clearTimeout(entry.waitTimer);
         settleWrite(entry, clientOutcome('target-changed'));
       }
     }

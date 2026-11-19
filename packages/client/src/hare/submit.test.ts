@@ -19,6 +19,7 @@ import {
   WRITE_OUTCOME_COALESCED_TOAST,
   WRITE_OUTCOME_CODE_ROWS,
   WRITE_OUTCOME_DETAIL_MAX_CHARS,
+  WRITE_OUTCOME_NOT_SENT_DETAIL,
   WRITE_OUTCOME_ROWS,
   clientOutcome,
   cutWriteOutcomeDetail,
@@ -999,6 +1000,95 @@ describe('HarePVService.heartbeat / submit', () => {
       expect(second.value).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
       expect(second.value?.outcome).toBe('unknown');
+    });
+
+    it('drops a value that waited its own budget behind a hung request, unsent, and keeps the slot held', async () => {
+      const { fetchFn, calls, releases } = deferredFetch();
+      const { service } = connected(fetchFn);
+
+      const first = track(service.submit('SIM:PV1', 1));
+      await vi.advanceTimersByTimeAsync(1000);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(34_000);
+      expect(first.value?.outcome).toBe('unknown');
+      expect(second.value).toBeUndefined();
+
+      // 35 s after its own submit(), not after the request ahead settles.
+      await vi.advanceTimersByTimeAsync(999);
+      expect(second.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(second.value).toEqual({
+        outcome: 'unknown',
+        row: 'client-unknown',
+        code: null,
+        status: null,
+        detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        coalesced: false,
+      });
+      expect(WRITE_OUTCOME_NOT_SENT_DETAIL.startsWith('not sent')).toBe(true);
+
+      // The hung request still holds the slot: a new value waits behind it.
+      const third = track(service.submit('SIM:PV1', 3));
+      await tick();
+      expect(calls).toHaveLength(1);
+
+      // When the hung request settles, the dropped value stays unsent.
+      releases[0]!({ ok: true, status: 200 });
+      await tick();
+      expect(calls.map((c) => c.body.value)).toEqual([1, 3]);
+      releases[1]!({ ok: true, status: 200 });
+      await tick();
+      expect(third.value?.outcome).toBe('confirmed');
+      expect(first.value?.outcome).toBe('unknown');
+    });
+
+    it('a superseded waiting value takes the newer value’s deadline and outcome, coalesced', async () => {
+      const { fetchFn, calls } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(10_000);
+      const third = track(service.submit('SIM:PV1', 3));
+
+      // The second value's own deadline no longer applies once it is superseded.
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(second.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(third.value).toMatchObject({
+        row: 'client-unknown',
+        detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        coalesced: false,
+      });
+      expect(second.value).toEqual({ ...third.value, coalesced: true });
+      expect(calls).toHaveLength(1);
+    });
+
+    it('times a waiting value by its own timeoutS budget', async () => {
+      const { fetchFn } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const waiting = track(service.submit('SIM:PV1', 2, { timeoutS: 120 }));
+      await vi.advanceTimersByTimeAsync(124_999);
+      expect(waiting.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(waiting.value?.detail).toBe(WRITE_OUTCOME_NOT_SENT_DETAIL);
+    });
+
+    it('a value sent before its deadline is timed from its send', async () => {
+      const { fetchFn, calls, releases } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(30_000);
+      releases[0]!({ ok: true, status: 200 });
+      await tick();
+      expect(calls).toHaveLength(2);
+      // Past the second value's wait deadline: it was sent, so it waits for its reply.
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(second.value).toBeUndefined();
+      releases[1]!({ ok: true, status: 200 });
+      await tick();
+      expect(second.value?.outcome).toBe('confirmed');
     });
 
     it('honours a configured putTimeoutMs', async () => {

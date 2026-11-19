@@ -204,6 +204,15 @@ export const WRITE_OUTCOME_COALESCED_TOAST = 'a newer value replaced this one; n
 type OutcomeRowId = WriteOutcome['row'];
 
 /**
+ * The detail of the `client-unknown` outcome `HarePVService.submit()` gives a
+ * value that waited its whole time budget behind an earlier write to the same
+ * PV: this value was never sent, and that earlier write has had no reply, so
+ * what the PV holds is not known.
+ */
+export const WRITE_OUTCOME_NOT_SENT_DETAIL =
+  'not sent: an earlier write to this PV is still unanswered — check the readback';
+
+/**
  * How each recognised envelope code maps: the row whose outcome it takes and
  * whose default detail stands in for a missing one, and whether the server's
  * own detail is the toast. Server rows (`pv_*`) carry toast text as their

@@ -78,6 +78,7 @@ export type { ClientRowId, WriteOutcomeRow } from './hare/writeOutcome.js';
 export {
   WRITE_OUTCOME_COALESCED_TOAST,
   WRITE_OUTCOME_DETAIL_MAX_CHARS,
+  WRITE_OUTCOME_NOT_SENT_DETAIL,
   WRITE_OUTCOME_ROWS,
   clientOutcome,
   outcomeFromResponse,
