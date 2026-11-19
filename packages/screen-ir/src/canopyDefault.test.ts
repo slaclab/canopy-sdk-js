@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 import { CANOPY_DEFAULT_SCHEME_ID, canopyDefaultFlat, parseFlatScheme } from './index.js';
@@ -22,6 +25,32 @@ const CONTRAST_PAIRS = [
 ];
 /** Grid splits by use: line colour (`Grid`) and the filled background (`Grid_Fill`). */
 const GRID_ROLES = ['Grid', 'Grid_Fill'];
+
+/**
+ * The files `tsc -p tsconfig.build.json` writes, relative to the package and
+ * with `/` separators. Collected from an in-memory emit, so nothing is written
+ * and a stale `dist/` can't hide a change.
+ */
+function buildOutputs(): string[] {
+  const packageDir = fileURLToPath(new URL('..', import.meta.url));
+  const config = ts.getParsedCommandLineOfConfigFile(
+    join(packageDir, 'tsconfig.build.json'),
+    undefined,
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: (d) => {
+        throw new Error(ts.flattenDiagnosticMessageText(d.messageText, '\n'));
+      },
+    }
+  );
+  if (config === undefined) throw new Error('cannot read tsconfig.build.json');
+  const program = ts.createProgram({ rootNames: config.fileNames, options: config.options });
+  const outputs: string[] = [];
+  program.emit(undefined, (fileName) => {
+    outputs.push(relative(packageDir, fileName).split(sep).join('/'));
+  });
+  return outputs;
+}
 
 /** `value` and every object and array inside it. */
 function containers(value: unknown): object[] {
@@ -79,7 +108,12 @@ describe('canopyDefaultFlat', () => {
     }).toThrow(TypeError);
   });
 
-  it('ships the data directory in the package', () => {
-    expect(pkg.files).toContain('data');
+  it('ships the data file in dist/, where the build emits it next to the code', () => {
+    const outputs = buildOutputs();
+    expect(outputs).toContain('dist/src/canopyDefault.js');
+    expect(outputs).toContain('dist/data/canopy-default.flat.json');
+    expect(pkg.files).toContain('dist');
+    // The source copy in data/ is only the build's input.
+    expect(pkg.files).not.toContain('data');
   });
 });
