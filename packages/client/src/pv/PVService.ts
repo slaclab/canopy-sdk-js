@@ -22,7 +22,10 @@ export interface PVData {
   precision: number;
   lowerLimit: number;
   upperLimit: number;
-  /** Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined otherwise. */
+  /**
+   * Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined
+   * otherwise, and on `HarePVService`'s disconnected copies.
+   */
   enumChoices?: string[];
   /**
    * The value's kind as last reported by the source (a Hare diff/initial, or

@@ -867,9 +867,10 @@ export class HarePVService implements PVService {
  * A disconnected copy of `base`: `connected: false`, DISCONNECTED severity,
  * `displayValue` `''` and the empty value of `kind` (waveform `[]`, string
  * `''`, table with no labels or columns, anything else `0`). The last value is
- * never carried over. `kind` becomes the copy's `valueKind`; when it is
- * undefined the copy has no `valueKind` key at all ("unknown"). Other fields
- * (units, limits, timestamp …) come from `base`.
+ * never carried over, nor are `enumChoices`: an enum's empty value `0` would
+ * otherwise read as its first state. `kind` becomes the copy's `valueKind`;
+ * when it is undefined the copy has no `valueKind` key at all ("unknown").
+ * Other fields (units, limits, timestamp …) come from `base`.
  */
 function disconnectedCopy(base: PVData, kind: ValueKind | undefined): PVData {
   const copy: PVData = {
@@ -879,6 +880,7 @@ function disconnectedCopy(base: PVData, kind: ValueKind | undefined): PVData {
     connected: false,
     severity: AlarmSeverity.DISCONNECTED,
   };
+  delete copy.enumChoices;
   if (kind === undefined) {
     delete copy.valueKind;
   } else {
