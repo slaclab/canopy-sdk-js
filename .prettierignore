@@ -20,3 +20,6 @@ LICENSE.md
 
 # Copied byte for byte from slaclab/canopy-spec; formatting would break the copies
 packages/screen-ir/spec
+
+# Byte copy of the runtime-generated expand() vectors (identity gated); never reformat
+packages/screen-ir/test-vectors
