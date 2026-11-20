@@ -1,5 +1,7 @@
 import type { PVService, PVData, PVListener } from './PVService.js';
 import { AlarmSeverity } from '../alarm.js';
+import type { PVWriteValue, WriteOutcome } from '../hare/types.js';
+import { serviceOutcome } from '../hare/writeOutcome.js';
 
 /**
  * Mock PV service that simulates EPICS PV data for development/demo.
@@ -70,6 +72,22 @@ export class MockPVService implements PVService {
       this.snapshots.set(pvName, data);
       this.notify(pvName, data);
     }
+  }
+
+  /**
+   * Write a number (or a boolean as 1 or 0, or numeric text) to a simulated
+   * PV, as `put()` does, and resolve `confirmed`. A PV that is not simulated
+   * (never subscribed), an array or text that is no number writes nothing and
+   * resolves `connector-refused` with its default text. `SubmitOptions` are
+   * ignored.
+   */
+  submit(pvName: string, value: PVWriteValue): Promise<WriteOutcome> {
+    const numVal = typeof value === 'string' ? parseFloat(value) : Number(value);
+    if (Array.isArray(value) || !this.snapshots.has(pvName) || !Number.isFinite(numVal)) {
+      return Promise.resolve(serviceOutcome('connector-refused'));
+    }
+    this.put(pvName, numVal);
+    return Promise.resolve(serviceOutcome('confirmed'));
   }
 
   getSnapshot(pvName: string): PVData | undefined {

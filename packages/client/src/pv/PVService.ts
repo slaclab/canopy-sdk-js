@@ -1,5 +1,12 @@
 import type { AlarmSeverity } from '../alarm.js';
-import type { TableValue, ValueKind } from '../hare/types.js';
+import type {
+  HareHeartbeatState,
+  PVWriteValue,
+  SubmitOptions,
+  TableValue,
+  ValueKind,
+  WriteOutcome,
+} from '../hare/types.js';
 
 // ── PV Data Types ───────────────────────────────────────────────────────────
 
@@ -36,6 +43,18 @@ export type PVListener = (data: PVData) => void;
 export interface PVService {
   subscribe(pvName: string, listener: PVListener): () => void;
   put(pvName: string, value: number | string | boolean): void;
+  /**
+   * Write one value and resolve its write outcome; never rejects. The checked
+   * path for writes a person makes from a screen (see `HarePVService.submit()`).
+   * Optional: a service without it has no checked writes. `LocalPVService`
+   * and `MockPVService` apply the value in memory and resolve at once.
+   */
+  submit?(pvName: string, value: PVWriteValue, options?: SubmitOptions): Promise<WriteOutcome>;
+  /**
+   * Heartbeat state of the service's control-target link (see
+   * `HarePVService.heartbeat()`). Only a service with a control target has one.
+   */
+  heartbeat?(): HareHeartbeatState;
   getSnapshot(pvName: string): PVData | undefined;
   connect(): void;
   disconnect(): void;
