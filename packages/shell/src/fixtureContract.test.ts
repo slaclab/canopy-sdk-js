@@ -1007,8 +1007,9 @@ describe('runner.mjs', () => {
     });
 
     it('passes a literal that the element shows and fails one it does not', async () => {
+      // The border needs a style: as in a browser, a border without one computes to 0.
       const page = mount(
-        '.probed { border-left-width: 2px; }',
+        '.probed { border-left: 2px solid; }',
         '<div class="cds--white"><b class="probed"></b></div>'
       );
       const pass = await runner.checkRow(page, row({ 'border-left-width': { literal: '2px' } }));
@@ -1041,7 +1042,7 @@ describe('runner.mjs', () => {
 
     it('fails a row when the document is not hosted as the caller expects', async () => {
       const page = mount(
-        '.probed { border-left-width: 2px; }',
+        '.probed { border-left: 2px solid; }',
         '<div class="cds--white"><b class="probed"></b></div>'
       );
       const probe = row({ 'border-left-width': { literal: '2px' } });
@@ -1151,7 +1152,7 @@ describe('runner.mjs', () => {
     it('runs the postconditions of the row setups last', async () => {
       // A stand-in postcondition, so the runner is pinned apart from any one setup's hold.
       const page = mount(
-        '.probed { border-left-width: 2px; }',
+        '.probed { border-left: 2px solid; }',
         '<div class="cds--white"><b class="probed" data-held="true"></b></div>'
       );
       const posts = setups.postconditions as Record<string, (page: PageLike) => Promise<void>>;
@@ -1178,7 +1179,7 @@ describe('runner.mjs', () => {
 
     it('fails a drop-highlight row that is read while no drag is held', async () => {
       const page = mount(
-        '.probed { border-left-width: 2px; }',
+        '.probed { border-left: 2px solid; }',
         '<div class="cds--white"><div class="tab-strip"></div><b class="probed"></b></div>'
       );
       const probe = row({ 'border-left-width': { literal: '2px' } }, { setup: ['hold-tab-drag'] });
