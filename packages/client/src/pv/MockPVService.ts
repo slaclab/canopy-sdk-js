@@ -108,6 +108,7 @@ export class MockPVService implements PVService {
     const data: PVData = {
       value,
       displayValue: this.formatValue(value, config.precision, config.units),
+      valueKind: 'scalar',
       severity,
       connected: true,
       timestamp: Date.now(),

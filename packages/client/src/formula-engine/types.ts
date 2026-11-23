@@ -93,9 +93,7 @@ export interface FormulaEnginePingMessage {
 }
 
 export type FormulaEngineClientMessage =
-  | FormulaEngineSubscribeMessage
-  | FormulaEngineUnsubscribeMessage
-  | FormulaEnginePingMessage;
+  FormulaEngineSubscribeMessage | FormulaEngineUnsubscribeMessage | FormulaEnginePingMessage;
 
 // ── Server -> client frames ──────────────────────────────────────────────────
 
