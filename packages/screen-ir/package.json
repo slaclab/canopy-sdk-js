@@ -25,8 +25,7 @@
   },
   "files": [
     "dist",
-    "spec/screen-ir",
-    "data"
+    "spec/screen-ir"
   ],
   "sideEffects": false,
   "scripts": {

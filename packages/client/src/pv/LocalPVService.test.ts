@@ -69,6 +69,20 @@ describe('parseLocUrl', () => {
       type: 'str',
     });
     expect(parseLocUrl('loc://x<VInt>?init=9')).toEqual({ name: 'x', vtype: 'VInt', init: '9' });
+    // The group ends at the `)` matching its `(`, not at the last `)` of the URL.
+    expect(parseLocUrl('loc://x(2)?type=str&init=f(a)')).toEqual({
+      name: 'x',
+      init: '2',
+      type: 'str',
+    });
+  });
+
+  it('closes the initialiser at its matching parenthesis, outside quoted text', () => {
+    expect(parseLocUrl('loc://s(f(x))')).toEqual({ name: 's', init: 'f(x)' });
+    expect(parseLocUrl('loc://s("a)b")')).toEqual({ name: 's', init: '"a)b"' });
+    expect(parseLocUrl('loc://s("a\\")b")')).toEqual({ name: 's', init: '"a\\")b"' });
+    // A `)` that closes the group early leaves no group at the end: the text is a name.
+    expect(parseLocUrl('loc://s(a)b)')).toEqual({ name: 's(a)b)' });
   });
 
   it('takes the whole text before the query as the name when no group closes there', () => {
@@ -101,7 +115,46 @@ describe('parseLocUrl', () => {
       vtype: 'VInt',
       init: '3',
     });
-    expect(parseLocUrl('loc://x($(P))')).toEqual({ name: 'x', init: '$(P)' });
+    // The macro's own `)` closes no initialiser: a text ending in a macro is a name.
+    expect(parseLocUrl('loc://a(1)$(M)')).toEqual({ name: 'a(1)$(M)' });
+    expect(parseLocUrl('loc://a(1)${M}')).toEqual({ name: 'a(1)${M}' });
+    // A group holding a macro declares the name with no initialiser.
+    expect(parseLocUrl('loc://x($(P))')).toEqual({ name: 'x' });
+    expect(parseLocUrl('loc://x(${P})')).toEqual({ name: 'x' });
+    expect(parseLocUrl('loc://x(1$(P)2)')).toEqual({ name: 'x' });
+    expect(parseLocUrl('loc://x<VInt>($(P))')).toEqual({ name: 'x', vtype: 'VInt' });
+    // A query init is taken as written, macros and all.
+    expect(parseLocUrl('loc://x?type=str&init=${P}')).toEqual({
+      name: 'x',
+      type: 'str',
+      init: '${P}',
+    });
+    // A dropped group initialiser leaves the query's in place.
+    expect(parseLocUrl('loc://x($(P))?type=int&init=3')).toEqual({
+      name: 'x',
+      type: 'int',
+      init: '3',
+    });
+  });
+
+  it('percent-decodes query values, keeping a malformed escape as written', () => {
+    // What the converter writes for the value `a & b+1%`.
+    expect(parseLocUrl('loc://msg?type=str&init=a%20%26%20b%2B1%25')).toEqual({
+      name: 'msg',
+      type: 'str',
+      init: 'a & b+1%',
+    });
+    // Not form encoding: a `+` stays a `+`.
+    expect(parseLocUrl('loc://msg?type=str&init=1+2')!.init).toBe('1+2');
+    expect(parseLocUrl('loc://msg?type=str&init=100%')!.init).toBe('100%');
+    expect(parseLocUrl('loc://msg?type=str&init=%E0%A4%A')!.init).toBe('%E0%A4%A');
+    expect(parseLocUrl('loc://n?type=%69nt&init=%2D4')).toEqual({
+      name: 'n',
+      type: 'int',
+      init: '-4',
+    });
+    // The Phoebus initialiser stays verbatim.
+    expect(parseLocUrl('loc://s("a%20b")')!.init).toBe('"a%20b"');
   });
 });
 
@@ -176,6 +229,25 @@ describe('LocalPVService', () => {
     expect(service.getSnapshot('loc://names')?.value).toEqual(['a', '1', '1']);
     await service.submit('loc://empty', []);
     expect(service.getSnapshot('loc://empty')?.value).toEqual([]);
+  });
+
+  it('declares a decoded query value, and no value from an unresolved macro', () => {
+    const service = new LocalPVService();
+    const msg = vi.fn();
+    service.subscribe('loc://msg?type=str&init=a%20%26%20b%2B1%25', msg);
+    expect(msg.mock.lastCall![0]).toMatchObject({ value: 'a & b+1%', connected: true });
+
+    const pending = vi.fn();
+    service.subscribe('loc://sel($(P))', pending);
+    expect(pending.mock.lastCall![0].connected).toBe(false);
+    // The same local as the bare name: a write reaches both spellings.
+    service.put('loc://sel', 2);
+    expect(pending.mock.lastCall![0]).toMatchObject({ value: 2, connected: true });
+
+    const named = vi.fn();
+    service.subscribe('loc://a(1)$(M)', named);
+    expect(named.mock.lastCall![0].connected).toBe(false);
+    expect(service.getSnapshot('loc://a')).toBeUndefined();
   });
 
   it('re-declaration does not reset an initialized local (first wins)', () => {

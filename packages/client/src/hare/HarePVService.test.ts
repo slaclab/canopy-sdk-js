@@ -1312,6 +1312,65 @@ describe('HarePVService', () => {
       expect(stringListener.mock.calls.at(-1)![0].value).toBe('');
     });
 
+    it('drops enumChoices, so the empty value 0 names no state', () => {
+      const { service, socket, instances } = waveformService();
+      const listener = vi.fn();
+      service.subscribe('SIM:MODE', listener);
+      const meta = makeMeta({ pv: 'SIM:MODE', valueKind: 'enum', enumChoices: ['Off', 'On'] });
+      socket.message(
+        initialFrame(
+          { 'SIM:MODE': makeValue({ pv: 'SIM:MODE', value: 1, valueKind: 'enum' }) },
+          { 'SIM:MODE': meta }
+        )
+      );
+      expect(listener.mock.calls.at(-1)![0]).toMatchObject({
+        value: 1,
+        displayValue: 'On',
+        enumChoices: ['Off', 'On'],
+      });
+
+      // The channel reports itself disconnected while the socket stays up.
+      socket.message(
+        diffFrame({
+          'SIM:MODE': makeValue({
+            pv: 'SIM:MODE',
+            value: null,
+            valueKind: 'enum',
+            connected: false,
+          }),
+        })
+      );
+      const reported = listener.mock.calls.at(-1)![0];
+      expect(reported).toMatchObject({ connected: false, value: 0, valueKind: 'enum' });
+      expect(reported).not.toHaveProperty('enumChoices');
+
+      // The socket drops.
+      socket.message(
+        diffFrame({ 'SIM:MODE': makeValue({ pv: 'SIM:MODE', value: 1, valueKind: 'enum' }) })
+      );
+      expect(listener.mock.calls.at(-1)![0].enumChoices).toEqual(['Off', 'On']);
+      socket.close();
+      const dropped = listener.mock.calls.at(-1)![0];
+      expect(dropped).toMatchObject({ connected: false, value: 0, valueKind: 'enum' });
+      expect(dropped).not.toHaveProperty('enumChoices');
+      expect(service.getSnapshot('SIM:MODE')).not.toHaveProperty('enumChoices');
+
+      // The next socket's initial frame brings the choices back.
+      vi.advanceTimersByTime(1000);
+      instances[1]!.open();
+      instances[1]!.message(
+        initialFrame(
+          { 'SIM:MODE': makeValue({ pv: 'SIM:MODE', value: 0, valueKind: 'enum' }) },
+          { 'SIM:MODE': meta }
+        )
+      );
+      expect(listener.mock.calls.at(-1)![0]).toMatchObject({
+        connected: true,
+        displayValue: 'Off',
+        enumChoices: ['Off', 'On'],
+      });
+    });
+
     it('clears metas on socket close', () => {
       const { service, socket } = waveformService();
       service.subscribe('PV1', vi.fn());
@@ -1344,6 +1403,41 @@ describe('HarePVService', () => {
       });
       expect(data).not.toHaveProperty('valueKind');
       expect(service.getSnapshot('LATE')).toEqual(data);
+    });
+
+    it('delivers a disconnected snapshot at once to a subscribe while reconnecting', () => {
+      const { factory, instances } = createFakeWebSocketFactory();
+      const service = new HarePVService({
+        url: BASE_URL,
+        webSocketFactory: factory,
+        reconnectDelaysMs: [10],
+      });
+      service.connect();
+      instances[0]!.open();
+      instances[0]!.close();
+      vi.advanceTimersByTime(10);
+      expect(service.status).toBe('connecting');
+
+      const listener = vi.fn();
+      service.subscribe('SIM:LATE', listener);
+      expect(listener).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ connected: false, severity: AlarmSeverity.DISCONNECTED })
+      );
+
+      // And after disconnect() and connect(), while the new socket is connecting.
+      service.disconnect();
+      service.connect();
+      expect(service.status).toBe('connecting');
+      const again = vi.fn();
+      service.subscribe('SIM:LATER', again);
+      expect(again).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ connected: false, displayValue: '' })
+      );
+
+      // The handshake completes: the server's initial frame replaces the copy.
+      instances[2]!.open();
+      instances[2]!.message(initialFrame({ 'SIM:LATE': makeValue({ pv: 'SIM:LATE', value: 5 }) }));
+      expect(listener.mock.calls.at(-1)![0]).toMatchObject({ connected: true, value: 5 });
     });
 
     it('delivers nothing on subscribe before the first connection', () => {

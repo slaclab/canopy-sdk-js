@@ -9,7 +9,8 @@ import { serviceOutcome } from '../hare/writeOutcome.js';
 //
 // - `loc://<name>?type=<int|float|str|array>&init=<value>` — what the converter
 //   writes for EDM `LOC\name=<t>:<value>` locals and for the Phoebus forms it
-//   can map.
+//   can map. Query values are percent-decoded (the converter escapes `%`, `&`
+//   and `+` in `init`); a malformed escape is kept as written.
 // - `loc://<name><VType>(init)` — the Phoebus form, as stored screens and
 //   hand-written ones carry it. `<VType>` and `(init)` are each optional. The
 //   grammar is the converter's (`pydmconverter/bob/local_pv.py`), with one
@@ -18,10 +19,17 @@ import { serviceOutcome } from '../hare/writeOutcome.js';
 //
 // `<VType>` and `(init)` are recognised only when the group closes at the end
 // of the URL or right before `?`; otherwise the whole text before `?` is the
-// name. A `(` that follows `$` opens a macro, never an initialiser. Names are
-// opaque strings — EDM scope prefixes (e.g. `${!W}` for window scope) ride
-// along verbatim, which preserves EDM's sharing semantics within one rendered
-// page. Every spelling of one name is the same local.
+// name. The `(init)` group closes at the `)` that matches its `(`, counting
+// nested parentheses and skipping double-quoted text, so in
+// `loc://x(2)?type=str&init=f(a)` the group is `(2)`. A `(` that follows `$` opens a macro, never an initialiser, and a
+// macro's `)` never closes one: `loc://a(1)$(M)` ends in a macro, so it is a
+// name. An unresolved macro (`$(NAME)` or `${NAME}`) is never part of a
+// `(init)` group: `loc://a($(M))` declares `a` with no initialiser, the
+// identity the converter gives it too. A query `init` is taken as written,
+// macros and all. Names are opaque strings — EDM
+// scope prefixes (e.g. `${!W}` for window scope) ride along verbatim, which
+// preserves EDM's sharing semantics within one rendered page. Every spelling
+// of one name is the same local.
 
 interface ParsedLocUrl {
   name: string;
@@ -29,8 +37,56 @@ interface ParsedLocUrl {
   type?: string;
   /** The text between `<` and `>` of the Phoebus form. */
   vtype?: string;
-  /** Initialiser text: the query's `init` value, or the text inside `(…)` verbatim. */
+  /**
+   * Initialiser text: the query's `init` value, percent-decoded, or the text
+   * inside `(…)` verbatim; never `(…)` text holding an unresolved macro.
+   */
   init?: string;
+}
+
+/** True when `text` holds an unresolved `$(NAME)` or `${NAME}` macro. */
+function holdsMacro(text: string): boolean {
+  return text.includes('$(') || text.includes('${');
+}
+
+/** True when the last character of `text` is the `)` closing its last `$(` macro. */
+function endsInMacro(text: string): boolean {
+  const open = text.lastIndexOf('$(');
+  return open !== -1 && text.indexOf(')', open + 2) === text.length - 1;
+}
+
+/** A query value percent-decoded, or as written when its escapes are malformed. */
+function decodeQueryValue(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Index of the `)` that closes the `(` at the start of `text`, counting nested
+ * parentheses and skipping double-quoted text (with `\` escapes), or -1 when the
+ * group never closes.
+ */
+function groupEnd(text: string): number {
+  let depth = 0;
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '\\') i += 1;
+      else if (ch === '"') quoted = false;
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === '(') {
+      depth += 1;
+    } else if (ch === ')') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
 }
 
 /** `name[<VType>][(init)]`, or null when `text` does not end in such a group. */
@@ -41,7 +97,7 @@ function parseDeclaration(text: string): ParsedLocUrl | null {
     if (ch === '<' || (ch === '(' && text[at - 1] !== '$')) break;
     at += 1;
   }
-  if (at === text.length) return null;
+  if (at === text.length || endsInMacro(text)) return null;
   const out: ParsedLocUrl = { name: text.slice(0, at) };
   let rest = text.slice(at);
   if (rest[0] === '<') {
@@ -51,8 +107,9 @@ function parseDeclaration(text: string): ParsedLocUrl | null {
     rest = rest.slice(close + 1);
     if (rest === '') return out;
   }
-  if (rest[0] !== '(' || !rest.endsWith(')')) return null;
-  out.init = rest.slice(1, -1);
+  if (rest[0] !== '(' || groupEnd(rest) !== rest.length - 1) return null;
+  const init = rest.slice(1, -1);
+  if (!holdsMacro(init)) out.init = init;
   return out;
 }
 
@@ -70,7 +127,7 @@ export function parseLocUrl(address: string): ParsedLocUrl | null {
     const eq = pair.indexOf('=');
     if (eq === -1) continue;
     const key = pair.slice(0, eq);
-    const value = pair.slice(eq + 1);
+    const value = decodeQueryValue(pair.slice(eq + 1));
     if (key === 'type') out.type = value;
     else if (key === 'init' && out.init === undefined) out.init = value;
   }
@@ -159,7 +216,7 @@ function coerceLiteral(type: LocalType | undefined, raw: string): LocalValue {
 
 function initialValue(parsed: ParsedLocUrl, type: LocalType | undefined): LocalValue | undefined {
   if (parsed.init === undefined) return undefined;
-  // Only the Phoebus form quotes and lists; a query value is taken as written.
+  // Only the Phoebus form quotes and lists; a query value is taken as decoded.
   if (parsed.vtype === undefined && parsed.type !== undefined) {
     return coerceQueryInit(parsed.type, parsed.init);
   }

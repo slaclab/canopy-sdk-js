@@ -22,16 +22,21 @@ export interface PVData {
   precision: number;
   lowerLimit: number;
   upperLimit: number;
-  /** Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined otherwise. */
+  /**
+   * Enum state labels (mbbo/bo choices) when the PV is enum-kind; undefined
+   * otherwise, and on `HarePVService`'s disconnected copies.
+   */
   enumChoices?: string[];
   /**
    * The value's kind as last reported by the source (a Hare diff/initial, or
-   * the type a local/mock service stored). A disconnected copy keeps the
-   * previous snapshot's kind, else the kind of the frame that reported the
-   * disconnect, and holds the empty value of that kind (waveform `[]`, string
-   * `''`, table with no labels or columns, anything else `0`). Absent when
-   * neither is known — `DISCONNECTED_PV` itself never carries one — so a
-   * missing kind is "unknown", never an implied `'scalar'`.
+   * the type a local/mock service stored). `HarePVService`'s disconnected
+   * copies keep the previous snapshot's kind, else the kind of the frame that
+   * reported the disconnect, and hold the empty value of that kind (waveform
+   * `[]`, string `''`, table with no labels or columns, anything else `0`).
+   * `LocalPVService.clear()` instead keeps each local's last value and kind,
+   * marked disconnected. Absent when no kind is known — `DISCONNECTED_PV`
+   * itself never carries one — so a missing kind is "unknown", never an
+   * implied `'scalar'`.
    */
   valueKind?: ValueKind;
 }

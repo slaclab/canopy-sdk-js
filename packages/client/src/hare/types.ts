@@ -287,7 +287,11 @@ export interface SubmitOptions {
    * the current socket's heartbeat binding at call time. Null is never sent.
    */
   binding?: string | null;
-  /** Sent as the request's `timeout`; never weakens the server's confirm policy. */
+  /**
+   * Sent as the request's `timeout`; never weakens the server's confirm
+   * policy. The client waits for the reply at least this long plus 5 s (see
+   * `HarePVServiceOptions.putTimeoutMs`).
+   */
   timeoutS?: number;
   /** True when a person confirmed this write in a dialog: sent as `confirmed: true`. */
   confirmed?: boolean;

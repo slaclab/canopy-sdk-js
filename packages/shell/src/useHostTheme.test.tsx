@@ -1,22 +1,44 @@
 import { StrictMode } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { Theme } from '@carbon/react';
 import { render, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useColorMode } from './themeStore.js';
 import type { ColorMode } from './themeStore.js';
 import { HOST_THEME_ID, modeFromThemeId, useHostTheme } from './useHostTheme.js';
 
 // jsdom does not resolve custom properties through the cascade, so a test that
-// needs a contract version puts it on the anchor's own inline style.
-function Root({ raw, mode, contract }: { raw: string | null; mode: ColorMode; contract?: string }) {
+// needs a contract version puts it on the anchor's own inline style. The anchor
+// carries a Carbon zone class, as the anchor of an app does; `zone={false}`
+// leaves it off.
+function Root({
+  raw,
+  mode,
+  contract,
+  zone = true,
+}: {
+  raw: string | null;
+  mode: ColorMode;
+  contract?: string;
+  zone?: boolean;
+}) {
   const { anchorRef, anchorProps } = useHostTheme<HTMLDivElement>(raw, mode);
   const style =
     contract === undefined ? undefined : ({ '--canopy-host-contract': contract } as CSSProperties);
-  return <div ref={anchorRef} {...anchorProps} style={style} data-testid="anchor" />;
+  return (
+    <div
+      ref={anchorRef}
+      {...anchorProps}
+      className={zone ? 'cds--g100' : undefined}
+      style={style}
+      data-testid="anchor"
+    />
+  );
 }
 
 function PortalRoot({ target, mode }: { target: HTMLElement; mode: ColorMode }) {
-  return createPortal(<Root raw={null} mode={mode} contract="1" />, target);
+  return createPortal(<Root raw="retro-light" mode={mode} contract="1" />, target);
 }
 
 function markHosted(doc: Document = document): void {
@@ -159,6 +181,7 @@ describe('useHostTheme contract marker', () => {
     const warn = spyWarn();
     const { getByTestId } = render(<Root raw="retro-dark" mode="dark" />);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('no contract version for theme retro-dark');
     expect(warn.mock.calls[0]![0]).toContain('expected 1.x');
     // The theme still applies.
     expect(getByTestId('anchor').getAttribute('data-theme')).toBe('retro-dark');
@@ -175,15 +198,40 @@ describe('useHostTheme contract marker', () => {
     expect(getByTestId('anchor').getAttribute('data-theme')).toBe('retro-dark');
   });
 
-  it('reads the marker once per mount, across re-renders and mode changes', () => {
+  it('reads the marker once per id, across re-renders and mode changes', () => {
     markHosted();
     const read = vi.spyOn(window, 'getComputedStyle');
     const warn = spyWarn();
     const { rerender } = render(<Root raw="retro-dark" mode="dark" contract="2" />);
+    rerender(<Root raw="retro-dark" mode="light" contract="2" />);
     rerender(<Root raw="retro-light" mode="light" contract="2" />);
     rerender(<Root raw="retro-dark" mode="dark" contract="2" />);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads nothing until the host sends a valid theme id', () => {
+    // A host sheet may declare the version under its theme ids only, so the
+    // anchor carries none while it shows the mode.
+    markHosted();
+    const read = vi.spyOn(window, 'getComputedStyle');
+    const warn = spyWarn();
+    const { rerender } = render(<Root raw={null} mode="dark" />);
+    rerender(<Root raw="../x" mode="dark" />);
+    expect(read).not.toHaveBeenCalled();
+
+    rerender(<Root raw="retro-dark" mode="dark" contract="1" />);
     expect(read).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('reports a major mismatch declared under an id that arrives after mount', () => {
+    markHosted();
+    const warn = spyWarn();
+    const { rerender } = render(<Root raw={null} mode="dark" />);
+    rerender(<Root raw="retro-dark" mode="dark" contract="2" />);
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('version 2 for theme retro-dark');
   });
 
   it('warns once under StrictMode', () => {
@@ -197,6 +245,33 @@ describe('useHostTheme contract marker', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
+  it('warns once in a hosted document when the anchor is not a Carbon zone element', () => {
+    markHosted();
+    const warn = spyWarn();
+    const { rerender } = render(<Root raw="retro-dark" mode="dark" contract="1" zone={false} />);
+    rerender(<Root raw="retro-light" mode="light" contract="1" zone={false} />);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('not a Carbon zone element');
+  });
+
+  it('warns about the zone once under StrictMode, and before any theme id arrives', () => {
+    markHosted();
+    const warn = spyWarn();
+    render(
+      <StrictMode>
+        <Root raw={null} mode="dark" zone={false} />
+      </StrictMode>
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('not a Carbon zone element');
+  });
+
+  it('does not check the zone in a standalone document', () => {
+    const warn = spyWarn();
+    render(<Root raw="retro-dark" mode="dark" zone={false} />);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('does not read the marker once the host marker was dropped', () => {
     // applyHostSheetFallback removed `data-canopy-host` before mount.
     const read = vi.spyOn(window, 'getComputedStyle');
@@ -204,5 +279,40 @@ describe('useHostTheme contract marker', () => {
     render(<Root raw="retro-dark" mode="dark" contract="2" />);
     expect(read).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+// The example of the README, verbatim: the anchor is the element Carbon's Theme renders.
+function AppRoot({ hostThemeId }: { hostThemeId: string | null }) {
+  const { colorMode, carbonTheme } = useColorMode();
+  const { anchorRef, anchorProps } = useHostTheme<HTMLDivElement>(hostThemeId, colorMode);
+
+  return (
+    <Theme theme={carbonTheme} ref={anchorRef} {...anchorProps}>
+      {/* ...the app... */}
+    </Theme>
+  );
+}
+
+describe('the README example', () => {
+  it('puts the anchor on the Carbon zone element, ref and attributes alike', () => {
+    markHosted();
+    const read = vi.spyOn(window, 'getComputedStyle');
+    const warn = spyWarn();
+
+    const { container } = render(<AppRoot hostThemeId="retro-dark" />);
+
+    const anchors = container.querySelectorAll('[data-canopy-host-root]');
+    expect(anchors).toHaveLength(1);
+    const anchor = anchors[0]!;
+    expect(anchor).toBe(container.firstElementChild);
+    expect(anchor.matches('.cds--g10, .cds--g100')).toBe(true);
+    expect(anchor.getAttribute('data-floating-menu-container')).toBe('');
+    expect(anchor.getAttribute('data-theme')).toBe('retro-dark');
+    // The hook read the contract version from the element its ref holds.
+    expect(read).toHaveBeenCalledWith(anchor);
+    expect(warn.mock.calls.map(([message]) => String(message))).not.toContainEqual(
+      expect.stringContaining('zone')
+    );
   });
 });

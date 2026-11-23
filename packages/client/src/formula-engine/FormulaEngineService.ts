@@ -56,7 +56,11 @@ export interface FormulaEngineServiceOptions {
    * which never stops the service; pass `[]` to always reconnect.
    */
   terminalCloseCodes?: number[];
-  /** Connection-level errors and error frames that match no subscription. */
+  /**
+   * Connection-level errors and error frames that match no subscription. Also
+   * the errors of subscriptions without their own `onError`; a lost connection
+   * reaches it as one `ws_disconnected` for all of them.
+   */
   onError?: (error: FormulaEngineError) => void;
   onStatusChange?: (status: FormulaEngineConnectionStatus) => void;
 }
@@ -75,7 +79,10 @@ export interface FormulaEngineSubscribeOptions {
   /** When > 0, the server re-evaluates on this timer instead of on PV change. */
   intervalMs?: number;
   onResult: (data: FormulaResultDTO) => void;
-  /** Errors scoped to this subscription. Falls back to the service-level onError. */
+  /**
+   * Errors scoped to this subscription; `ws_disconnected` once when an open
+   * connection is lost. Falls back to the service-level onError.
+   */
   onError?: (error: FormulaEngineError) => void;
 }
 
@@ -119,6 +126,12 @@ export class FormulaEngineService {
   /** Subscribe frames sent on the current socket, awaiting `subscribed` replies (FIFO). */
   private pending: LocalSubscription[] = [];
   private byServerId = new Map<string, LocalSubscription>();
+  /**
+   * True from a socket's open until it closes (or `dispose()`): only the close
+   * of a socket that opened ends live evaluations, so a reconnect attempt that
+   * never opened reports nothing.
+   */
+  private socketOpened = false;
 
   private _status: FormulaEngineConnectionStatus = 'idle';
 
@@ -134,7 +147,10 @@ export class FormulaEngineService {
       webSocketFactory: options.webSocketFactory,
       terminalCloseCodes: options.terminalCloseCodes,
       label: 'FormulaEngineService',
-      onOpen: () => this.resubscribeAll(),
+      onOpen: () => {
+        this.socketOpened = true;
+        this.resubscribeAll();
+      },
       onFrame: (frame) => this.handleFrame(frame),
       onClose: () => this.handleSocketClose(),
       onStatusChange: (status) => this.setStatus(toServiceStatus(status)),
@@ -169,6 +185,7 @@ export class FormulaEngineService {
    */
   dispose(): void {
     this.resetServerCorrelation();
+    this.socketOpened = false;
     this.socket.close();
   }
 
@@ -227,21 +244,34 @@ export class FormulaEngineService {
   /** The socket dropped on its own (an explicit `dispose()` never gets here). */
   private handleSocketClose(): void {
     this.resetServerCorrelation();
+    // A socket that never opened carried no evaluation: the outage, if any,
+    // was reported when the last open socket closed. So `ws_disconnected`
+    // reaches each subscription at most once per outage.
+    const opened = this.socketOpened;
+    this.socketOpened = false;
+    if (!opened) return;
 
     // Every held subscription loses its live evaluation with the socket. Tell
     // each one, so a consumer stops presenting its last result as current;
     // retryable while the service reconnects (the subscription is kept and
-    // re-sent on reconnect), not after a terminal close stopped it.
+    // re-sent on reconnect), not after a terminal close stopped it. The
+    // subscriptions without their own onError share one service-level error.
     // Iterate a copy: a callback may unsubscribe.
-    const retryable = this.socket.status !== 'closed';
+    const error: FormulaEngineError = {
+      code: 'ws_disconnected',
+      message: 'Formula connection lost.',
+      retryable: this.socket.status !== 'closed',
+    };
+    let unhandled = false;
     for (const sub of [...this.subscriptions]) {
       if (!this.subscriptions.has(sub)) continue;
-      this.dispatchSubscriptionError(sub, {
-        code: 'ws_disconnected',
-        message: 'Formula connection lost.',
-        retryable,
-      });
+      if (sub.onError) {
+        sub.onError({ ...error });
+      } else {
+        unhandled = true;
+      }
     }
+    if (unhandled) this.reportError(error);
   }
 
   /** Server-assigned ids die with their socket; forget all reply correlation. */

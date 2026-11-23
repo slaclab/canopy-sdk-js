@@ -8,9 +8,10 @@ tests against them.
 | `heartbeat_vectors.json` | `src/canopy/contracts/heartbeat_vectors.json` | `cc10af4e9fc30111de2073006a543ff7d9cffa04` |
 | `write_outcome_vectors.json` | `src/canopy/contracts/write_outcome_vectors.json` | `2cd15e2f5fed1fb3f0b1b3f5d3e90ec03020ad9c` |
 
-Both copies match canopy commit `23c082f9f783e8532a520b147c8faf934f95ab3b`, which last changed either file (the
-`asked` and `held` write states). That commit is not on canopy `main` yet. `git hash-object <file>` here must print the blob
-above, and equal `git rev-parse <canopy commit>:<canopy source>`.
+`write_outcome_vectors.json` last changed in canopy commit `cce67b307bee7f44958a66a30a331490c6f20efb`, the head of
+canopy PR #99, and `heartbeat_vectors.json` in `6feba9987b2c7b2c1a6f5d56f43fad500c7c53cf`, the head of PR #100, which
+builds on #99. Neither commit is on canopy `main` yet. `git hash-object <file>` here must print the blob above, and
+equal `git rev-parse 6feba99:<canopy source>`.
 
 - `heartbeat_vectors.json`: what a heartbeat's `reachable` and `writes` fields mean and what the viewer shows for
   them. Read by `src/hare/HarePVService.test.ts`.

@@ -204,6 +204,15 @@ export const WRITE_OUTCOME_COALESCED_TOAST = 'a newer value replaced this one; n
 type OutcomeRowId = WriteOutcome['row'];
 
 /**
+ * The detail of the `client-unknown` outcome `HarePVService.submit()` gives a
+ * value that waited its whole time budget behind an earlier write to the same
+ * PV: this value was never sent, and that earlier write has had no reply, so
+ * what the PV holds is not known.
+ */
+export const WRITE_OUTCOME_NOT_SENT_DETAIL =
+  'not sent: an earlier write to this PV is still unanswered — check the readback';
+
+/**
  * How each recognised envelope code maps: the row whose outcome it takes and
  * whose default detail stands in for a missing one, and whether the server's
  * own detail is the toast. Server rows (`pv_*`) carry toast text as their
@@ -332,9 +341,10 @@ function jsonObject(bodyText: string): Record<string, unknown> | null {
  * whether it did. A 2xx is `confirmed` only when its body is the server's
  * write result, a JSON object with a string `pv` (shape only: the name is not
  * compared); any other 2xx body — a followed redirect's login page, an empty
- * body — is `client-unknown`. Other statuses map by envelope code, and a 405
- * with none is `writes-not-enabled` (generic canopy with the relay off). An
- * unrecognised code, or a non-2xx with no envelope, is `client-unknown`. Among
+ * body — is `client-unknown`. Every 405 is `writes-not-enabled` (generic
+ * canopy with the relay off answers with no code), with the table text and
+ * the envelope's code, if any, as `code`. Other statuses map by envelope code.
+ * An unrecognised code, or a non-2xx with no envelope, is `client-unknown`. Among
  * the rows a code maps to, a fixed-text row is the one whose status and text
  * the reply carries (`front-refused-403`, `connector-refused-read-only`);
  * otherwise the code's own row.
@@ -353,10 +363,9 @@ export function outcomeFromResponse(
       ? rowOutcome('confirmed', status, null)
       : rowOutcome('client-unknown', status, null);
   }
-  if (status === 405) return rowOutcome('writes-not-enabled', status, null);
-
   const envelope = jsonObject(bodyText);
   const code = typeof envelope?.code === 'string' ? envelope.code : null;
+  if (status === 405) return rowOutcome('writes-not-enabled', status, code);
   const mapping = code !== null && Object.hasOwn(CODE_ROWS, code) ? CODE_ROWS[code] : undefined;
   if (!mapping) return rowOutcome('client-unknown', status, code);
   if (!mapping.serverDetail) return rowOutcome(mapping.row, status, code);

@@ -28,7 +28,11 @@ import type {
   WriteOutcome,
 } from './types.js';
 import { ValueKind } from './types.js';
-import { clientOutcome, outcomeFromResponse } from './writeOutcome.js';
+import {
+  WRITE_OUTCOME_NOT_SENT_DETAIL,
+  clientOutcome,
+  outcomeFromResponse,
+} from './writeOutcome.js';
 
 export type { FetchLike, WebSocketFactory, WebSocketLike } from '../transport.js';
 
@@ -80,7 +84,11 @@ export interface HarePVServiceOptions {
    * or the socket closing.
    */
   onHeartbeat?: (state: HareHeartbeatState) => void;
-  /** Time budget of one `submit()` request, from the send; past it the outcome is `unknown`. Default 35000. */
+  /**
+   * Time budget of one `submit()` request, from the send; past it the outcome
+   * is `unknown`. A request whose `timeoutS` asks the server for longer gets
+   * that long plus 5 s instead. Default 35000.
+   */
   putTimeoutMs?: number;
 }
 
@@ -91,6 +99,12 @@ export interface HareWriteOptions {
 }
 
 const DEFAULT_PUT_TIMEOUT_MS = 35000;
+
+/**
+ * Time added to a request's own `timeoutS` for the server's reply to come
+ * back, when that timeout is longer than `putTimeoutMs`.
+ */
+const PUT_REPLY_MARGIN_MS = 5000;
 
 /**
  * Most PV names put in one subscribe/unsubscribe frame. Hare silently
@@ -115,6 +129,8 @@ interface QueuedWrite {
   binding: string | null;
   origin: PVWriteOrigin | undefined;
   timeoutS: number | undefined;
+  /** How long its request may go unanswered before the outcome is `unknown` (see `writeBudgetMs`). */
+  budgetMs: number;
   /** Sent as `confirmed: true` when a person confirmed the write. */
   confirmed: boolean;
   /** The connection and its heartbeat binding at call time: a pending write is dropped when either changed. */
@@ -123,6 +139,8 @@ interface QueuedWrite {
   resolve: (outcome: WriteOutcome) => void;
   /** Earlier pending calls this one superseded; they resolve with its outcome, coalesced. */
   superseded: Array<(outcome: WriteOutcome) => void>;
+  /** While the value waits: drops it unsent once `budgetMs` has passed since its `submit()`. */
+  waitTimer?: ReturnType<typeof setTimeout>;
 }
 
 /** A PV's write slot: present while one request is in flight; `pending` is the latest value waiting. */
@@ -289,9 +307,11 @@ export class HarePVService implements PVService {
     set.add(listener);
 
     let snapshot = this.snapshots.get(pvName);
-    if (!snapshot && this._status === 'disconnected') {
-      // The link is down: say so at once instead of leaving the PV silent
-      // until the next connect.
+    const linkDown =
+      this._status === 'disconnected' || (this._status === 'connecting' && this.openCount > 0);
+    if (!snapshot && linkDown) {
+      // The link is down, or coming back after a socket had opened: say so at
+      // once instead of leaving the PV silent until the next connect.
       snapshot = disconnectedCopy(DISCONNECTED_PV, undefined);
       this.snapshots.set(pvName, snapshot);
     }
@@ -409,8 +429,14 @@ export class HarePVService implements PVService {
    *   one supersedes it, and the superseded call resolves with the newer one's
    *   outcome and `coalesced: true`. A waiting value whose socket closed or
    *   whose heartbeat binding changed resolves `target-changed` with no request.
-   * - Never retries. No reply within `putTimeoutMs` of the send resolves
+   *   A value still waiting once its own time budget has passed since its
+   *   `submit()` call resolves `client-unknown` with
+   *   `WRITE_OUTCOME_NOT_SENT_DETAIL` and is never sent; the request ahead of
+   *   it keeps the slot.
+   * - Never retries. No reply within the time budget of the send resolves
    *   `client-unknown`; the PV's slot stays held until that request settles.
+   *   The budget is `putTimeoutMs`, or `options.timeoutS` plus 5 s when that
+   *   is longer, so the server's own timeout runs out first.
    */
   submit(pvName: string, value: PVWriteValue, options: SubmitOptions = {}): Promise<WriteOutcome> {
     const hb = this.heartbeat();
@@ -424,6 +450,7 @@ export class HarePVService implements PVService {
         binding: options.binding !== undefined ? options.binding : hb.binding,
         origin: options.origin,
         timeoutS: options.timeoutS,
+        budgetMs: this.writeBudgetMs(options.timeoutS),
         confirmed: options.confirmed === true,
         connection,
         heartbeatBinding: hb.binding,
@@ -438,9 +465,20 @@ export class HarePVService implements PVService {
       }
       const previous = slot.pending;
       if (previous) {
+        clearTimeout(previous.waitTimer);
         entry.superseded = [...previous.superseded, previous.resolve];
       }
       slot.pending = entry;
+      // The request ahead may hang far longer than this value should wait:
+      // past its own budget it is dropped, so it is never sent late.
+      entry.waitTimer = setTimeout(() => {
+        if (slot.pending !== entry) return;
+        slot.pending = null;
+        settleWrite(entry, {
+          ...clientOutcome('client-unknown'),
+          detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        });
+      }, entry.budgetMs);
     });
   }
 
@@ -453,11 +491,24 @@ export class HarePVService implements PVService {
       clearTimeout(timer);
       settleWrite(entry, outcome);
     };
-    const timer = setTimeout(() => finish(clientOutcome('client-unknown')), this.putTimeoutMs);
+    const timer = setTimeout(() => finish(clientOutcome('client-unknown')), entry.budgetMs);
     void this.sendWriteRequest(pvName, entry).then((outcome) => {
       finish(outcome);
       this.releaseWriteSlot(pvName);
     });
+  }
+
+  /**
+   * How long a request with this `timeoutS` may go unanswered:
+   * `putTimeoutMs`, or the server's timeout plus `PUT_REPLY_MARGIN_MS` when
+   * that is longer. A `timeoutS` that is not a positive number is ignored here
+   * (the server rejects it).
+   */
+  private writeBudgetMs(timeoutS: number | undefined): number {
+    if (timeoutS === undefined || !Number.isFinite(timeoutS) || timeoutS <= 0) {
+      return this.putTimeoutMs;
+    }
+    return Math.max(this.putTimeoutMs, timeoutS * 1000 + PUT_REPLY_MARGIN_MS);
   }
 
   /** The request settled: send the PV's pending value, if it is still valid, or free the slot. */
@@ -470,6 +521,7 @@ export class HarePVService implements PVService {
       this.writeSlots.delete(pvName);
       return;
     }
+    clearTimeout(next.waitTimer);
     const hb = this.heartbeat();
     if (!hb.seen || this.connection !== next.connection || hb.binding !== next.heartbeatBinding) {
       this.writeSlots.delete(pvName);
@@ -485,6 +537,7 @@ export class HarePVService implements PVService {
       const entry = slot.pending;
       if (entry && !keep(entry)) {
         slot.pending = null;
+        clearTimeout(entry.waitTimer);
         settleWrite(entry, clientOutcome('target-changed'));
       }
     }
@@ -816,9 +869,10 @@ export class HarePVService implements PVService {
  * A disconnected copy of `base`: `connected: false`, DISCONNECTED severity,
  * `displayValue` `''` and the empty value of `kind` (waveform `[]`, string
  * `''`, table with no labels or columns, anything else `0`). The last value is
- * never carried over. `kind` becomes the copy's `valueKind`; when it is
- * undefined the copy has no `valueKind` key at all ("unknown"). Other fields
- * (units, limits, timestamp …) come from `base`.
+ * never carried over, nor are `enumChoices`: an enum's empty value `0` would
+ * otherwise read as its first state. `kind` becomes the copy's `valueKind`;
+ * when it is undefined the copy has no `valueKind` key at all ("unknown").
+ * Other fields (units, limits, timestamp …) come from `base`.
  */
 function disconnectedCopy(base: PVData, kind: ValueKind | undefined): PVData {
   const copy: PVData = {
@@ -828,6 +882,7 @@ function disconnectedCopy(base: PVData, kind: ValueKind | undefined): PVData {
     connected: false,
     severity: AlarmSeverity.DISCONNECTED,
   };
+  delete copy.enumChoices;
   if (kind === undefined) {
     delete copy.valueKind;
   } else {

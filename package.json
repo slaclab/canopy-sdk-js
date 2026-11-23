@@ -13,8 +13,8 @@
     "typecheck": "pnpm run build && pnpm -r run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,css}\" \"packages/*/*.{md,css}\"",
-    "format:check": "prettier --check \"packages/*/src/**/*.{ts,tsx,css}\" \"packages/*/*.{md,css}\"",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,css}\" \"packages/*/*.{md,css}\" \"packages/shell/scripts/**/*.{ts,mjs,mts}\" \"packages/shell/fixtures/**/*.{mjs,mts,css,json}\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.{ts,tsx,css}\" \"packages/*/*.{md,css}\" \"packages/shell/scripts/**/*.{ts,mjs,mts}\" \"packages/shell/fixtures/**/*.{mjs,mts,css,json}\"",
     "prepare": "husky"
   },
   "devDependencies": {

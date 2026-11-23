@@ -19,6 +19,7 @@ import {
   WRITE_OUTCOME_COALESCED_TOAST,
   WRITE_OUTCOME_CODE_ROWS,
   WRITE_OUTCOME_DETAIL_MAX_CHARS,
+  WRITE_OUTCOME_NOT_SENT_DETAIL,
   WRITE_OUTCOME_ROWS,
   clientOutcome,
   cutWriteOutcomeDetail,
@@ -369,6 +370,22 @@ describe('write-outcome table', () => {
       status: 405,
       detail: 'writes are not enabled on this server',
       coalesced: false,
+    });
+    // Every 405 is writes-not-enabled; an envelope code rides along as `code`.
+    expect(outcomeFromResponse(false, 405, envelope('method_not_allowed', 'PUT is off'))).toEqual({
+      outcome: 'refused',
+      row: 'writes-not-enabled',
+      code: 'method_not_allowed',
+      status: 405,
+      detail: 'writes are not enabled on this server',
+      coalesced: false,
+    });
+    expect(
+      outcomeFromResponse(false, 405, envelope('pv_write_refused', 'channel SIM:PV1 is read-only'))
+    ).toMatchObject({
+      row: 'writes-not-enabled',
+      code: 'pv_write_refused',
+      detail: 'writes are not enabled on this server',
     });
     expect(
       outcomeFromResponse(false, 401, envelope('invalid_access_credential', 'bad X-Canopy-Access'))
@@ -1001,6 +1018,95 @@ describe('HarePVService.heartbeat / submit', () => {
       expect(second.value?.outcome).toBe('unknown');
     });
 
+    it('drops a value that waited its own budget behind a hung request, unsent, and keeps the slot held', async () => {
+      const { fetchFn, calls, releases } = deferredFetch();
+      const { service } = connected(fetchFn);
+
+      const first = track(service.submit('SIM:PV1', 1));
+      await vi.advanceTimersByTimeAsync(1000);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(34_000);
+      expect(first.value?.outcome).toBe('unknown');
+      expect(second.value).toBeUndefined();
+
+      // 35 s after its own submit(), not after the request ahead settles.
+      await vi.advanceTimersByTimeAsync(999);
+      expect(second.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(second.value).toEqual({
+        outcome: 'unknown',
+        row: 'client-unknown',
+        code: null,
+        status: null,
+        detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        coalesced: false,
+      });
+      expect(WRITE_OUTCOME_NOT_SENT_DETAIL.startsWith('not sent')).toBe(true);
+
+      // The hung request still holds the slot: a new value waits behind it.
+      const third = track(service.submit('SIM:PV1', 3));
+      await tick();
+      expect(calls).toHaveLength(1);
+
+      // When the hung request settles, the dropped value stays unsent.
+      releases[0]!({ ok: true, status: 200 });
+      await tick();
+      expect(calls.map((c) => c.body.value)).toEqual([1, 3]);
+      releases[1]!({ ok: true, status: 200 });
+      await tick();
+      expect(third.value?.outcome).toBe('confirmed');
+      expect(first.value?.outcome).toBe('unknown');
+    });
+
+    it('a superseded waiting value takes the newer value’s deadline and outcome, coalesced', async () => {
+      const { fetchFn, calls } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(10_000);
+      const third = track(service.submit('SIM:PV1', 3));
+
+      // The second value's own deadline no longer applies once it is superseded.
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(second.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(third.value).toMatchObject({
+        row: 'client-unknown',
+        detail: WRITE_OUTCOME_NOT_SENT_DETAIL,
+        coalesced: false,
+      });
+      expect(second.value).toEqual({ ...third.value, coalesced: true });
+      expect(calls).toHaveLength(1);
+    });
+
+    it('times a waiting value by its own timeoutS budget', async () => {
+      const { fetchFn } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const waiting = track(service.submit('SIM:PV1', 2, { timeoutS: 120 }));
+      await vi.advanceTimersByTimeAsync(124_999);
+      expect(waiting.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(waiting.value?.detail).toBe(WRITE_OUTCOME_NOT_SENT_DETAIL);
+    });
+
+    it('a value sent before its deadline is timed from its send', async () => {
+      const { fetchFn, calls, releases } = deferredFetch();
+      const { service } = connected(fetchFn);
+      void service.submit('SIM:PV1', 1);
+      const second = track(service.submit('SIM:PV1', 2));
+      await vi.advanceTimersByTimeAsync(30_000);
+      releases[0]!({ ok: true, status: 200 });
+      await tick();
+      expect(calls).toHaveLength(2);
+      // Past the second value's wait deadline: it was sent, so it waits for its reply.
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(second.value).toBeUndefined();
+      releases[1]!({ ok: true, status: 200 });
+      await tick();
+      expect(second.value?.outcome).toBe('confirmed');
+    });
+
     it('honours a configured putTimeoutMs', async () => {
       const { fetchFn } = deferredFetch();
       const { factory, instances } = createFakeWebSocketFactory();
@@ -1015,6 +1121,57 @@ describe('HarePVService.heartbeat / submit', () => {
       instances[0]!.message(heartbeatFrame(BINDING));
       const got = track(service.submit('X', 1));
       await vi.advanceTimersByTimeAsync(1000);
+      expect(got.value?.outcome).toBe('unknown');
+    });
+
+    it('waits timeoutS plus 5 s when the request asks the server for longer', async () => {
+      const { fetchFn, calls } = deferredFetch();
+      const { service } = connected(fetchFn);
+      const got = track(service.submit('SIM:PV1', 1, { timeoutS: 120 }));
+      await tick();
+      expect(calls[0]!.body.timeout).toBe(120);
+      await vi.advanceTimersByTimeAsync(124_999);
+      expect(got.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(got.value).toMatchObject({ outcome: 'unknown', row: 'client-unknown' });
+    });
+
+    it('keeps putTimeoutMs for a shorter timeoutS and ignores one that is not a positive number', async () => {
+      const { fetchFn } = deferredFetch();
+      const { service } = connected(fetchFn);
+      const short = track(service.submit('SIM:PV1', 1, { timeoutS: 3 }));
+      const nan = track(service.submit('SIM:PV2', 1, { timeoutS: Number.NaN }));
+      const negative = track(service.submit('SIM:PV3', 1, { timeoutS: -1 }));
+      const infinite = track(service.submit('SIM:PV4', 1, { timeoutS: Infinity }));
+      await vi.advanceTimersByTimeAsync(34_999);
+      expect([short.value, nan.value, negative.value, infinite.value]).toEqual([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+      await vi.advanceTimersByTimeAsync(1);
+      for (const got of [short, nan, negative, infinite]) {
+        expect(got.value?.outcome).toBe('unknown');
+      }
+    });
+
+    it('adds the 5 s to timeoutS over a configured putTimeoutMs too', async () => {
+      const { fetchFn } = deferredFetch();
+      const { factory, instances } = createFakeWebSocketFactory();
+      const service = new HarePVService({
+        url: BASE_URL,
+        webSocketFactory: factory,
+        fetchFn,
+        putTimeoutMs: 1000,
+      });
+      service.connect();
+      instances[0]!.open();
+      instances[0]!.message(heartbeatFrame(BINDING));
+      const got = track(service.submit('SIM:PV1', 1, { timeoutS: 2 }));
+      await vi.advanceTimersByTimeAsync(6_999);
+      expect(got.value).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
       expect(got.value?.outcome).toBe('unknown');
     });
   });
