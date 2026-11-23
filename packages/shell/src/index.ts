@@ -39,3 +39,9 @@ export type { ConfirmFn, ConfirmOptions, ConfirmProviderProps } from './confirm.
 
 export { ErrorBoundary, ErrorFallback } from './ErrorBoundary.js';
 export type { ErrorBoundaryProps, ErrorFallbackProps } from './ErrorBoundary.js';
+
+export { useFontsReady } from './useFontsReady.js';
+export { useChartFont } from './useChartFont.js';
+export { applyHostSheetFallback } from './applyHostSheetFallback.js';
+export { HOST_THEME_ID, modeFromThemeId, useHostTheme } from './useHostTheme.js';
+export type { HostThemeAnchorProps } from './useHostTheme.js';
