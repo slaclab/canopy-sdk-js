@@ -118,8 +118,7 @@ interface LocalSubscription {
 export class FormulaEngineService {
   private readonly onErrorCallback: ((error: FormulaEngineError) => void) | undefined;
   private readonly onStatusChangeCallback:
-    | ((status: FormulaEngineConnectionStatus) => void)
-    | undefined;
+    ((status: FormulaEngineConnectionStatus) => void) | undefined;
   private readonly socket: ResilientSocket;
 
   /** Every live local subscription, in subscribe order. */
