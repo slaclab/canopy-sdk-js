@@ -174,11 +174,7 @@ export interface HareErrorFrame {
 }
 
 export type HareServerFrame =
-  | HareInitialFrame
-  | HareDiffFrame
-  | HareHeartbeatFrame
-  | HarePongFrame
-  | HareErrorFrame;
+  HareInitialFrame | HareDiffFrame | HareHeartbeatFrame | HarePongFrame | HareErrorFrame;
 
 // ── Client -> server messages ────────────────────────────────────────────
 
