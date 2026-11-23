@@ -2,7 +2,8 @@
 // Layered: (1) structural conformance to the JSON Schema
 // (../spec/screen-ir/screen-ir.schema.json, copied from slaclab/canopy-spec), then
 // (2) the semantic rules the schema can't express (macro defaults, formula://
-// resolution). So validate() is the FULL contract, not just the structural subset.
+// resolution, color roles only in 1.1 documents). So validate() is the FULL
+// contract, not just the structural subset.
 //
 // Rule ids and error locations follow canopy-spec's README; the spec's
 // conformance cases (spec/conformance) check both, see conformance.test.ts.
@@ -11,12 +12,17 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import type { ValidateFunction } from 'ajv/dist/2020.js';
 
+import { carriesColorRole } from './colorRoleWalk.js';
 import { formulaName, isFormulaRef } from './formula.js';
 import schema from '../spec/screen-ir/screen-ir.schema.json' with { type: 'json' };
 
 /** `schema` for a JSON Schema failure, otherwise a canopy-spec semantic rule id. */
 export type ValidationRule =
-  'schema' | 'macro-default-required' | 'macro-default-forbidden' | 'formula-ref-unresolved';
+  | 'schema'
+  | 'macro-default-required'
+  | 'macro-default-forbidden'
+  | 'formula-ref-unresolved'
+  | 'color-role-version';
 
 export interface ValidationError {
   readonly rule: ValidationRule;
@@ -54,6 +60,9 @@ export function validateDetailed(screen: unknown): ValidationError[] {
 
   if (!validateSchema(screen)) {
     for (const err of validateSchema.errors ?? []) {
+      // An `if` error only restates that a branch failed; the branch's own
+      // errors name the property and the reason.
+      if (err.keyword === 'if') continue;
       const path = err.instancePath || '(root)';
       errors.push({
         rule: 'schema',
@@ -70,6 +79,7 @@ export function validateDetailed(screen: unknown): ValidationError[] {
 
   checkMacroDefaults(doc, errors);
   checkFormulaRefs(doc, errors);
+  checkColorRoleVersion(doc, errors);
 
   return errors;
 }
@@ -155,6 +165,20 @@ function checkFormulaRefs(doc: ScreenLike, errors: ValidationError[]): void {
   walk(doc.root, '/root');
 }
 
+/**
+ * A `"1.0"` document must not carry a ColorRole: in a widget's props at any
+ * depth, in a condition's `value` or in a rule's `default`, in the root or any
+ * child. Reported once, at `/schemaVersion`.
+ */
+function checkColorRoleVersion(doc: ScreenLike, errors: ValidationError[]): void {
+  if (doc.schemaVersion !== '1.0' || !carriesColorRole(doc.root)) return;
+  errors.push({
+    rule: 'color-role-version',
+    instancePath: '/schemaVersion',
+    message: `schemaVersion '1.0' cannot carry a color role; a document with one must be '1.1'`,
+  });
+}
+
 /** Escape one JSON Pointer reference token (RFC 6901). */
 function pointerToken(key: string): string {
   return key.replace(/~/g, '~0').replace(/\//g, '~1');
@@ -165,6 +189,7 @@ function pointerToken(key: string): string {
 // semantic checks touch.
 
 interface ScreenLike {
+  readonly schemaVersion?: string;
   readonly kind?: 'screen' | 'template';
   readonly macros?: ReadonlyArray<{ readonly name: string; readonly default?: unknown }>;
   readonly formulas?: ReadonlyArray<{ readonly name: string }>;
