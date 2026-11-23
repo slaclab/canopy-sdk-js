@@ -4,14 +4,21 @@ import { useChartFont } from './useChartFont.js';
 
 type Load = (font: string) => Promise<unknown>;
 
-// jsdom does not inherit font-family through getComputedStyle, so the wrapper
-// carries its own family; it has no FontFaceSet either, so a test that watches
-// the load stubs `fonts.load` on the wrapper's document.
+// The wrapper carries its own family, so each test reads a known one. jsdom has
+// no FontFaceSet, so a test that watches the load stubs `fonts.load` on the
+// wrapper's document.
 function wrapperIn(doc: Document, family: string): HTMLElement {
   const el = doc.createElement('div');
   el.style.fontFamily = family;
   doc.body.appendChild(el);
   return el;
+}
+
+// A second document with its own window, as a pop-out's is.
+function frameDocument(): Document {
+  const frame = document.createElement('iframe');
+  document.body.appendChild(frame);
+  return frame.contentDocument!;
 }
 
 function stubFonts(doc: Document, load: Load): void {
@@ -64,7 +71,14 @@ describe('useChartFont', () => {
     const doc = document.implementation.createHTMLDocument('detached');
     expect(doc.defaultView).toBeNull();
     const el = wrapperIn(doc, 'IBM Plex Mono');
-    const opener = vi.spyOn(window, 'getComputedStyle');
+    // Like a browser, jsdom computes nothing for a windowless document, so the
+    // opener's answer is stubbed: this test pins which window the hook asks.
+    const compute = window.getComputedStyle.bind(window);
+    const opener = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((target) =>
+        target === el ? ({ fontFamily: 'IBM Plex Mono' } as CSSStyleDeclaration) : compute(target)
+      );
 
     const ref = { current: el };
     const { result } = renderHook(() => useChartFont(ref));
@@ -85,8 +99,8 @@ describe('useChartFont', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
-  it('reports no family for a wrapper without one', async () => {
-    const el = wrapperIn(document, '');
+  it('reports no family for a wrapper whose document computes none', async () => {
+    const el = wrapperIn(document.implementation.createHTMLDocument('detached'), 'Inter');
     const ref = { current: el };
     const { result } = renderHook(() => useChartFont(ref));
     await flush();
@@ -96,7 +110,7 @@ describe('useChartFont', () => {
   it('is ready only once the family has loaded in the wrapper document', async () => {
     let resolve!: (faces: unknown[]) => void;
     const load = vi.fn<Load>(() => new Promise((r) => (resolve = r)));
-    const doc = document.implementation.createHTMLDocument('fonts');
+    const doc = frameDocument();
     stubFonts(doc, load);
     const el = wrapperIn(doc, 'IBM Plex Sans');
 
@@ -113,7 +127,7 @@ describe('useChartFont', () => {
 
   it('is ready when the load rejects, so the chart draws with the fallback face', async () => {
     const load = vi.fn<Load>(() => Promise.reject(new Error('network')));
-    const doc = document.implementation.createHTMLDocument('fonts');
+    const doc = frameDocument();
     stubFonts(doc, load);
     const el = wrapperIn(doc, 'Missing Face');
 
