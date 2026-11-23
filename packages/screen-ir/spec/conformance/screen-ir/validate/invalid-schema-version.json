@@ -1,5 +1,5 @@
 {
-  "description": "`schemaVersion` must be \"1.0\" for this version of the spec.",
+  "description": "`schemaVersion` must be \"1.0\" or \"1.1\" for this version of the spec.",
   "valid": false,
   "errors": [
     {

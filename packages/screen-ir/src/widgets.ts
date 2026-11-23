@@ -2,17 +2,9 @@
 // (spec/screen-ir/widgets). The list and the data come from
 // widgets.generated.ts, which the spec sync writes.
 
+import { deepFreeze } from './guards.js';
 import type { WidgetDefinitionData } from './widget-definition.js';
 import { IR_WIDGET_TYPES as GENERATED_TYPES, WIDGET_DEFINITION_DATA } from './widgets.generated.js';
-
-/** Freezes `value` and everything inside it, arrays included. */
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null) {
-    for (const child of Object.values(value)) deepFreeze(child);
-    Object.freeze(value);
-  }
-  return value;
-}
 
 /** Every IR widget `type` the spec defines, sorted. Frozen. */
 export const IR_WIDGET_TYPES = deepFreeze(GENERATED_TYPES);

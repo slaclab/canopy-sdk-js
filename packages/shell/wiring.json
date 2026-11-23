@@ -1,0 +1,860 @@
+{
+  "zone": {
+    "--cds-ai-aura-end": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-aura-hover-background": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-aura-hover-end": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-aura-hover-start": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-aura-start": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-aura-start-sm": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-border-end": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-border-start": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-border-strong": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-drop-shadow": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-inner-shadow": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-overlay": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-background": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-caret-bottom": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-caret-bottom-background": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-caret-bottom-background-actions": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-caret-center": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-shadow-outer-01": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-popover-shadow-outer-02": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-skeleton-background": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-ai-skeleton-element-background": {
+      "carbon": "AI palette, unused in these apps"
+    },
+    "--cds-background": "var(--canopy-bg-base)",
+    "--cds-background-active": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-background-brand": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-background-hover": "var(--canopy-hover-tint)",
+    "--cds-background-inverse": "var(--canopy-text-primary)",
+    "--cds-background-inverse-hover": "color-mix(in srgb, var(--canopy-text-primary) 85%, var(--canopy-bg-base))",
+    "--cds-background-selected": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-background-selected-hover": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-border-disabled": "color-mix(in srgb, var(--canopy-text-muted) 50%, transparent)",
+    "--cds-border-interactive": "var(--canopy-accent)",
+    "--cds-border-inverse": "var(--canopy-border-strong)",
+    "--cds-border-strong": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-border-strong-01": "var(--canopy-border-strong)",
+    "--cds-border-strong-02": "var(--canopy-border-strong)",
+    "--cds-border-strong-03": "var(--canopy-border-strong)",
+    "--cds-border-subtle": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-border-subtle-00": "var(--canopy-border)",
+    "--cds-border-subtle-01": "var(--canopy-border)",
+    "--cds-border-subtle-02": "var(--canopy-border)",
+    "--cds-border-subtle-03": "var(--canopy-border)",
+    "--cds-border-subtle-selected": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-border-subtle-selected-01": "var(--canopy-border-strong)",
+    "--cds-border-subtle-selected-02": "var(--canopy-border-strong)",
+    "--cds-border-subtle-selected-03": "var(--canopy-border-strong)",
+    "--cds-border-tile": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-border-tile-01": "var(--canopy-border)",
+    "--cds-border-tile-02": "var(--canopy-border)",
+    "--cds-border-tile-03": "var(--canopy-border)",
+    "--cds-button-danger-active": {
+      "carbon": "danger palette keeps Carbon's paired semantics"
+    },
+    "--cds-button-danger-hover": {
+      "carbon": "danger palette keeps Carbon's paired semantics"
+    },
+    "--cds-button-danger-primary": {
+      "carbon": "danger palette keeps Carbon's paired semantics"
+    },
+    "--cds-button-danger-secondary": {
+      "carbon": "danger palette keeps Carbon's paired semantics"
+    },
+    "--cds-button-disabled": "color-mix(in srgb, var(--canopy-text-muted) 30%, var(--canopy-bg-panel))",
+    "--cds-button-primary": "var(--canopy-accent)",
+    "--cds-button-primary-active": "color-mix(in srgb, var(--canopy-accent), #000 24%)",
+    "--cds-button-primary-hover": "var(--canopy-accent-hover)",
+    "--cds-button-secondary": "color-mix(in srgb, var(--canopy-bg-elevated), var(--canopy-text-primary) 12%)",
+    "--cds-button-secondary-active": "color-mix(in srgb, var(--canopy-bg-elevated), var(--canopy-text-primary) 28%)",
+    "--cds-button-secondary-hover": "color-mix(in srgb, var(--canopy-bg-elevated), var(--canopy-text-primary) 20%)",
+    "--cds-button-separator": {
+      "carbon": "danger palette keeps Carbon's paired semantics"
+    },
+    "--cds-button-tertiary": "var(--canopy-accent)",
+    "--cds-button-tertiary-active": "color-mix(in srgb, var(--canopy-accent), #000 24%)",
+    "--cds-button-tertiary-hover": "var(--canopy-accent-hover)",
+    "--cds-chat-avatar-agent": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-avatar-bot": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-avatar-user": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-bubble-agent": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-bubble-agent-text": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-bubble-border": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-bubble-user": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-bubble-user-text": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button-active": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button-hover": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button-selected": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button-text-hover": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-button-text-selected": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-header-background": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-header-text": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-prompt-background": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-prompt-border-end": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-prompt-border-start": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-prompt-text": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-chat-shell-background": {
+      "carbon": "chat palette, unused in these apps"
+    },
+    "--cds-color-scheme": {
+      "carbon": "a keyword, not a colour: the zone class decides it"
+    },
+    "--cds-content-switcher-background": {
+      "carbon": "content switcher palette keeps Carbon's paired semantics"
+    },
+    "--cds-content-switcher-background-hover": {
+      "carbon": "content switcher palette keeps Carbon's paired semantics"
+    },
+    "--cds-content-switcher-selected": {
+      "carbon": "content switcher palette keeps Carbon's paired semantics"
+    },
+    "--cds-field": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-field-01": "var(--canopy-bg-field)",
+    "--cds-field-02": "var(--canopy-bg-field)",
+    "--cds-field-03": "var(--canopy-bg-field)",
+    "--cds-field-hover": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-field-hover-01": "color-mix(in srgb, var(--canopy-bg-field), var(--canopy-text-primary) 8%)",
+    "--cds-field-hover-02": "color-mix(in srgb, var(--canopy-bg-field), var(--canopy-text-primary) 8%)",
+    "--cds-field-hover-03": "color-mix(in srgb, var(--canopy-bg-field), var(--canopy-text-primary) 8%)",
+    "--cds-focus": "var(--canopy-focus)",
+    "--cds-focus-inset": {
+      "carbon": "the inner focus ring is paired with Carbon's own focus surfaces"
+    },
+    "--cds-focus-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-highlight": {
+      "carbon": "highlight, overlay and shadow keep Carbon's zone value"
+    },
+    "--cds-icon-disabled": "color-mix(in srgb, var(--canopy-text-muted) 50%, transparent)",
+    "--cds-icon-interactive": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-icon-inverse": "var(--canopy-bg-base)",
+    "--cds-icon-on-color": "var(--canopy-on-accent)",
+    "--cds-icon-on-color-disabled": "color-mix(in srgb, var(--canopy-text-muted) 60%, var(--canopy-bg-panel))",
+    "--cds-icon-primary": "var(--canopy-text-primary)",
+    "--cds-icon-secondary": "var(--canopy-text-secondary)",
+    "--cds-interactive": "var(--canopy-accent)",
+    "--cds-layer": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-01": "var(--canopy-bg-panel)",
+    "--cds-layer-02": "var(--canopy-bg-elevated)",
+    "--cds-layer-03": "var(--canopy-bg-elevated)",
+    "--cds-layer-accent": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-accent-01": "var(--canopy-bg-elevated)",
+    "--cds-layer-accent-02": "var(--canopy-bg-elevated)",
+    "--cds-layer-accent-03": "var(--canopy-bg-elevated)",
+    "--cds-layer-accent-active": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-accent-active-01": "var(--canopy-hover-tint)",
+    "--cds-layer-accent-active-02": "var(--canopy-hover-tint)",
+    "--cds-layer-accent-active-03": "var(--canopy-hover-tint)",
+    "--cds-layer-accent-hover": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-accent-hover-01": "var(--canopy-hover-tint)",
+    "--cds-layer-accent-hover-02": "var(--canopy-hover-tint)",
+    "--cds-layer-accent-hover-03": "var(--canopy-hover-tint)",
+    "--cds-layer-active": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-active-01": "color-mix(in srgb, var(--canopy-bg-panel), var(--canopy-text-primary) 12%)",
+    "--cds-layer-active-02": "color-mix(in srgb, var(--canopy-bg-panel), var(--canopy-text-primary) 12%)",
+    "--cds-layer-active-03": "color-mix(in srgb, var(--canopy-bg-panel), var(--canopy-text-primary) 12%)",
+    "--cds-layer-background": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-background-01": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-layer-background-02": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-layer-background-03": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-layer-hover": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-hover-01": "var(--canopy-hover-tint)",
+    "--cds-layer-hover-02": "var(--canopy-hover-tint)",
+    "--cds-layer-hover-03": "var(--canopy-hover-tint)",
+    "--cds-layer-selected": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-selected-01": "var(--canopy-accent-tint)",
+    "--cds-layer-selected-02": "var(--canopy-accent-tint)",
+    "--cds-layer-selected-03": "var(--canopy-accent-tint)",
+    "--cds-layer-selected-disabled": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-layer-selected-hover": {
+      "carbon": "context alias derives from the -0x token"
+    },
+    "--cds-layer-selected-hover-01": "color-mix(in srgb, var(--canopy-accent-tint), var(--canopy-accent) 10%)",
+    "--cds-layer-selected-hover-02": "color-mix(in srgb, var(--canopy-accent-tint), var(--canopy-accent) 10%)",
+    "--cds-layer-selected-hover-03": "color-mix(in srgb, var(--canopy-accent-tint), var(--canopy-accent) 10%)",
+    "--cds-layer-selected-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-link-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-link-inverse-active": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-link-inverse-hover": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-link-inverse-visited": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-link-primary": "var(--canopy-accent)",
+    "--cds-link-primary-hover": "var(--canopy-accent-hover)",
+    "--cds-link-secondary": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-link-visited": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-notification-action-hover": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-action-tertiary-inverse": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-action-tertiary-inverse-active": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-action-tertiary-inverse-hover": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-action-tertiary-inverse-text": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-action-tertiary-inverse-text-on-color-disabled": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-background-error": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-background-info": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-background-success": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-notification-background-warning": {
+      "carbon": "notification palette keeps Carbon's paired semantics"
+    },
+    "--cds-overlay": {
+      "carbon": "highlight, overlay and shadow keep Carbon's zone value"
+    },
+    "--cds-shadow": {
+      "carbon": "highlight, overlay and shadow keep Carbon's zone value"
+    },
+    "--cds-skeleton-background": {
+      "carbon": "skeleton palette keeps Carbon's paired semantics"
+    },
+    "--cds-skeleton-element": {
+      "carbon": "skeleton palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-blue": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-gray": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-green": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-orange": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-orange-outline": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-purple": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-red": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-yellow": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-status-yellow-outline": {
+      "carbon": "status palette keeps Carbon's paired semantics"
+    },
+    "--cds-support-caution-major": {
+      "carbon": "the contract has no info or caution status; keeps Carbon's value"
+    },
+    "--cds-support-caution-minor": {
+      "carbon": "the contract has no info or caution status; keeps Carbon's value"
+    },
+    "--cds-support-caution-undefined": {
+      "carbon": "the contract has no info or caution status; keeps Carbon's value"
+    },
+    "--cds-support-error": "var(--canopy-status-error)",
+    "--cds-support-error-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-support-info": {
+      "carbon": "the contract has no info or caution status; keeps Carbon's value"
+    },
+    "--cds-support-info-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-support-success": "var(--canopy-status-success)",
+    "--cds-support-success-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-support-warning": "var(--canopy-status-warning)",
+    "--cds-support-warning-inverse": {
+      "carbon": "inverse selections keep Carbon's paired semantics"
+    },
+    "--cds-syntax-angle-bracket": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-annotation": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-arithmetic-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-atom": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-attribute": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-attribute-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-attribute-value": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-bitwise-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-block-comment": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-bool": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-brace": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-bracket": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-character": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-class-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-color": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-comment": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-compare-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-constant": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-content": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-content-separator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-control-keyword": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-control-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-definition": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-definition-keyword": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-definition-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-deleted": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-deref-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-doc-comment": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-doc-string": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-document-meta": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-emphasis": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-escape": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-float": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-function": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-1": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-2": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-3": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-4": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-5": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-heading-6": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-inserted": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-integer": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-invalid": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-keyword": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-label-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-line-comment": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-link": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-list": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-literal": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-local": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-logic-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-macro-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-meta": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-modifier": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-module-keyword": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-monospace": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-namespace": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-null": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-number": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-operator-keyword": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-paren": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-processing-instruction": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-property-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-punctuation": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-quote": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-regexp": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-self": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-separator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-special": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-special-string": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-square-bracket": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-standard": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-strikethrough": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-string": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-strong": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-tag": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-tag-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-type": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-type-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-type-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-unit": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-update-operator": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-url": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-variable": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-syntax-variable-name": {
+      "carbon": "code syntax palette, unused in these apps"
+    },
+    "--cds-tag-background-blue": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-cool-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-cyan": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-green": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-magenta": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-purple": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-red": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-teal": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-background-warm-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-blue": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-cool-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-cyan": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-green": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-magenta": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-purple": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-red": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-teal": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-border-warm-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-blue": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-cool-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-cyan": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-green": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-magenta": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-purple": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-red": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-teal": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-color-warm-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-blue": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-cool-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-cyan": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-green": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-magenta": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-purple": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-red": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-teal": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-tag-hover-warm-gray": {
+      "carbon": "tag palette keeps Carbon's paired semantics"
+    },
+    "--cds-text-disabled": "color-mix(in srgb, var(--canopy-text-muted) 50%, transparent)",
+    "--cds-text-error": {
+      "carbon": "outside the wiring seed; keeps Carbon's zone value"
+    },
+    "--cds-text-helper": "var(--canopy-text-muted)",
+    "--cds-text-inverse": "var(--canopy-bg-base)",
+    "--cds-text-on-color": "var(--canopy-on-accent)",
+    "--cds-text-on-color-disabled": "color-mix(in srgb, var(--canopy-text-muted) 60%, var(--canopy-bg-panel))",
+    "--cds-text-placeholder": "var(--canopy-text-muted)",
+    "--cds-text-primary": "var(--canopy-text-primary)",
+    "--cds-text-secondary": "var(--canopy-text-secondary)",
+    "--cds-toggle-off": "var(--canopy-text-muted)"
+  },
+  "type": {
+    "--cds-body-01-font-size": "var(--canopy-text-md)",
+    "--cds-body-02-font-size": "var(--canopy-text-lg)",
+    "--cds-body-compact-01-font-size": "var(--canopy-text-md)",
+    "--cds-body-compact-02-font-size": "var(--canopy-text-lg)",
+    "--cds-body-short-01-font-size": "var(--canopy-text-md)",
+    "--cds-code-01-font-family": "var(--canopy-font-mono)",
+    "--cds-code-01-font-size": "var(--canopy-text-sm)",
+    "--cds-code-02-font-family": "var(--canopy-font-mono)",
+    "--cds-code-02-font-size": "var(--canopy-text-md)",
+    "--cds-heading-01-font-size": "var(--canopy-text-md)",
+    "--cds-heading-02-font-size": "var(--canopy-text-lg)",
+    "--cds-heading-03-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    },
+    "--cds-heading-04-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    },
+    "--cds-heading-05-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    },
+    "--cds-heading-06-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    },
+    "--cds-heading-compact-01-font-size": "var(--canopy-text-md)",
+    "--cds-helper-text-01-font-size": "var(--canopy-text-sm)",
+    "--cds-label-01-font-size": "var(--canopy-text-sm)",
+    "--cds-label-02-font-size": "var(--canopy-text-md)",
+    "--cds-productive-heading-03-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    },
+    "--cds-productive-heading-04-font-size": {
+      "carbon": "display sizes, unused in these apps"
+    }
+  },
+  "layout": {
+    "--cds-layout-size-height-sm": "var(--canopy-control-h-sm)",
+    "--cds-layout-size-height-xs": "var(--canopy-control-h-xs)"
+  }
+}
