@@ -1,5 +1,7 @@
 import type { PVService, PVData, PVListener } from './PVService.js';
 import { AlarmSeverity } from '../alarm.js';
+import type { PVWriteValue, WriteOutcome } from '../hare/types.js';
+import { serviceOutcome } from '../hare/writeOutcome.js';
 
 // ── loc:// URL grammar ──────────────────────────────────────────────────────
 //
@@ -169,6 +171,17 @@ function kindOf(value: LocalValue): PVData['valueKind'] {
   return typeof value === 'number' ? 'scalar' : 'string';
 }
 
+/**
+ * A written value as a local holds it: a boolean as 1 or 0, an array of
+ * numbers as `number[]`, any other array as the text of each item (a boolean
+ * item is 1 or 0 either way).
+ */
+function storedValue(value: PVWriteValue): LocalValue {
+  if (!Array.isArray(value)) return typeof value === 'boolean' ? Number(value) : value;
+  const items = value.map((item) => (typeof item === 'boolean' ? Number(item) : item));
+  return items.every((item) => typeof item === 'number') ? (items as number[]) : items.map(String);
+}
+
 interface LocalPV {
   data: PVData;
   initialized: boolean;
@@ -191,6 +204,8 @@ interface LocalPV {
  * - Scope is the service instance. The composition root owns one per page
  *   and calls `clear()` when the screen changes, mirroring EDM's
  *   window-local lifetime.
+ * - `submit()` writes like `put()` and resolves the `confirmed` row: there is
+ *   no server, binding or confirmation policy behind a local.
  */
 export class LocalPVService implements PVService {
   private pvs = new Map<string, LocalPV>();
@@ -295,14 +310,28 @@ export class LocalPVService implements PVService {
   }
 
   put(pvName: string, value: number | string | boolean) {
+    this.store(pvName, storedValue(value));
+  }
+
+  /**
+   * Write `value` at once, as `put()` does, and resolve `confirmed`
+   * ("written", no status or code). The local holds what was written, so
+   * nothing is left to check; `SubmitOptions` (binding, confirmation, origin,
+   * timeout) have no meaning here and are ignored.
+   */
+  submit(pvName: string, value: PVWriteValue): Promise<WriteOutcome> {
+    this.store(pvName, storedValue(value));
+    return Promise.resolve(serviceOutcome('confirmed'));
+  }
+
+  private store(pvName: string, value: LocalValue) {
     const pv = this.entry(pvName);
-    const stored = typeof value === 'boolean' ? (value ? 1 : 0) : value;
     pv.initialized = true;
     pv.data = {
       ...pv.data,
-      value: stored,
-      displayValue: String(stored),
-      valueKind: typeof stored === 'number' ? 'scalar' : 'string',
+      value,
+      displayValue: String(value),
+      valueKind: kindOf(value),
       connected: true,
       timestamp: Date.now(),
     };
