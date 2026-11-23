@@ -16,10 +16,7 @@ import schema from '../spec/screen-ir/screen-ir.schema.json' with { type: 'json'
 
 /** `schema` for a JSON Schema failure, otherwise a canopy-spec semantic rule id. */
 export type ValidationRule =
-  | 'schema'
-  | 'macro-default-required'
-  | 'macro-default-forbidden'
-  | 'formula-ref-unresolved';
+  'schema' | 'macro-default-required' | 'macro-default-forbidden' | 'formula-ref-unresolved';
 
 export interface ValidationError {
   readonly rule: ValidationRule;
