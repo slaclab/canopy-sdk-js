@@ -310,9 +310,17 @@ describe('buildTokens', () => {
     'status-success',
     'status-warning',
     'status-error',
+    'bar-h',
+    'bar-icon',
+    'tab-min-w',
+    'tab-max-w',
+    'tab-underline',
+    'weight-medium',
+    'shadow-dropdown',
+    'z-dropdown',
   ];
 
-  it('lists the 27 contract names in their published order', () => {
+  it('lists the 35 contract names in their published order', () => {
     const tokens = buildTokens(parseStylesheet(stylesheet()));
 
     expect(Object.keys(tokens.names)).toEqual(NAMES);
@@ -494,6 +502,29 @@ describe('renderBlocks', () => {
       expect(rule).toContain('  --cds-interactive: var(--canopy-accent);\n');
       expect(rule).toContain('  --cds-layout-size-height-sm: var(--canopy-control-h-sm);');
       expect(rule).not.toContain('--cds-toggle-off');
+    }
+  });
+
+  it('gives the shadow its light or dark literal per zone, standalone and as the fallback', () => {
+    const light = '0 4px 12px rgba(0, 0, 0, 0.1)';
+    const dark = '0 8px 24px rgba(0, 0, 0, 0.4)';
+    const shared = blocks.slice(0, blocks.indexOf('\n}'));
+    expect(shared).not.toContain('--canopy-shadow-dropdown');
+    expect(shared).toContain('\n  --canopy-bar-h: 36px;\n');
+    expect(shared).toContain('\n  --canopy-z-dropdown: 100;');
+    for (const [zone, literal] of [
+      ['white', light],
+      ['g10', light],
+      ['g90', dark],
+      ['g100', dark],
+    ]) {
+      expect(blocks).toContain(`\n.cds--${zone} {\n  --canopy-shadow-dropdown: ${literal};\n}`);
+      const start = blocks.indexOf(`\nhtml[data-canopy-host] .cds--${zone} {\n`);
+      const rule = blocks.slice(start, blocks.indexOf('\n}', start));
+      expect(rule).toContain(
+        `  --canopy-shadow-dropdown: var(--canopy-host-shadow-dropdown, ${literal});\n`
+      );
+      expect(rule).toContain('  --canopy-weight-medium: var(--canopy-host-weight-medium, 500);\n');
     }
   });
 });

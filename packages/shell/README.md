@@ -438,6 +438,12 @@ derives from contract names with `color-mix()` still apply under the gate. A
 hosted app does not render exactly as a standalone one, even with every name
 unset.
 
+The eight tile-bar, weight and layer names (`bar-h`, `bar-icon`, `tab-min-w`,
+`tab-max-w`, `tab-underline`, `weight-medium`, `shadow-dropdown`,
+`z-dropdown`) have no Carbon counterpart. Their standalone value is a chosen
+literal (`36px`, `14px`, `96px`, `220px`, `2px`, `500`, a light and a dark
+dropdown shadow, `100`), not a Carbon value.
+
 ### Versioning
 
 A host stylesheet declares the contract version it was written for as
@@ -451,7 +457,7 @@ the version under its theme ids only.
 
 ### The names
 
-Contract v1 has 27 names, each set by the host as `--canopy-host-<name>` and
+Contract v1 has 35 names, each set by the host as `--canopy-host-<name>` and
 read by the app as `--canopy-<name>`:
 
 | Group    | Names                                                              |
@@ -466,6 +472,12 @@ read by the app as `--canopy-<name>`:
 | Accent   | `accent`, `on-accent`, `accent-hover`, `accent-tint`, `hover-tint` |
 | Focus    | `focus`                                                            |
 | Status   | `status-success`, `status-warning`, `status-error`                 |
+| Tile bar | `bar-h`, `bar-icon`, `tab-min-w`, `tab-max-w`, `tab-underline`     |
+| Weights  | `weight-medium`                                                    |
+| Layers   | `shadow-dropdown`, `z-dropdown`                                    |
+
+The tile-bar, weight and layer names have no consumer in `host-contract.css`:
+canopy-screen-runtime's tile bar reads them.
 
 ### What the server that delivers the page does
 
@@ -523,7 +535,7 @@ import wiring from '@slaclab/canopy-shell/wiring.json' with { type: 'json' };
   defines every `--canopy-*` variable per Carbon zone, points Carbon's own
   tokens at them, and holds the few component rules that read them.
 - **`tokens.json`.** The contract as data: the version, the four Carbon zones
-  and, for each of the 27 names, its Carbon value per zone and the Carbon
+  and, for each of the 35 names, its Carbon value per zone and the Carbon
   tokens it drives.
 - **`wiring.json`.** The map from every Carbon zone, type and layout token to
   the contract name that drives it, or to the reason it stays Carbon's. It is

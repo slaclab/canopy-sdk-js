@@ -11,18 +11,6 @@
   "rows": [
     {
       "app": "viewer",
-      "selector": ".tab-strip[role=tablist]",
-      "setup": [],
-      "expect": {
-        "height": { "contract": "control-h-sm" },
-        "background-color": { "contract": "bg-panel" },
-        "border-bottom-color": { "contract": "border" },
-        "font-family": { "contract": "font-ui" },
-        "font-size": { "contract": "text-sm" }
-      }
-    },
-    {
-      "app": "viewer",
       "selector": ".nav-tree__row",
       "setup": [],
       "expect": {
@@ -633,8 +621,10 @@
       "selector": ".canopy-tile-bar",
       "setup": [],
       "expect": {
+        "height": { "contract": "bar-h" },
         "background-color": { "contract": "bg-panel" },
-        "border-bottom-color": { "contract": "border" }
+        "border-bottom-color": { "contract": "border" },
+        "font-family": { "contract": "font-ui" }
       }
     },
     {
@@ -660,7 +650,7 @@
       "setup": ["dock-second-tile"],
       "stack": false,
       "expect": {
-        "border-top-color": { "contract": "accent" }
+        "border-bottom-color": { "contract": "accent" }
       }
     },
     {
